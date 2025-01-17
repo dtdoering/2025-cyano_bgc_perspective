@@ -1,0 +1,397 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(purrr)
+library(ggbeeswarm)
+library(scales)
+library(stringr)
+library(jsonlite)
+library(forcats)
+library(ggbreak)
+```
+
+```{r}
+bgc_class <- read_tsv("./data/2025-01-16-1256-bgc_class_ref.tsv") %>% select(!owner_id)
+class_to_cat <- bgc_class$bgc_category
+names(class_to_cat) <- bgc_class$class_name
+
+bgc_tax <- read_tsv("./data/2025-01-16-1522-cyano_bgc_tax.tsv")
+
+protos <- read_tsv("./data/2025-01-14-1801-cyano_protoclusters.tsv")
+
+regions <- read_tsv("./data/2025-01-14-1850-cyano_as_regions.tsv") %>%
+    mutate(classes = map(region_class, function(class_string) (
+        if ( str_starts(class_string, fixed("[")) )
+            fromJSON(class_string)
+        else
+            c(class_string)
+    ))) %>% 
+    mutate(categories = classes %>% map(function(cls_vec) (
+        map_vec(cls_vec, function(cls_str) class_to_cat[[cls_str]]) %>% unique() %>% sort())
+    )) %>%
+    mutate(cats_str = categories %>% map_chr(function(x) str_flatten(x, collapse = ", "))) %>%
+    add_count(cats_str) %>% 
+    mutate(cats_str = forcats::fct_reorder(cats_str, desc(n)),
+           class_str = classes %>% map_chr(function(x) str_flatten(x, collapse = ", ")))
+
+as_smc_bgcs <- read_tsv("./data/2025-01-14-1927-cyano_as_bgcs.tsv")
+```
+
+# Meeting notes
+[~] Remove the saccharides
+    - They got lumped in the "All other" category, easier than figuring out how to deal with hybrid-saccharides
+[x] Add category for "NRPS-PKS"
+[x] Grab which ones are 243kb
+[ ] Play with dimensions / sub-plots to show the smaller lengths (indep. cutoff for each category)
+[x] Bundle the category combinations below some cutoff (use "other"? see how it looks)
+[x] Stick with barplot
+[x] DON'T bother log-transforming Y-axis
+[ ] Add letters to each facet
+[x] Export the summary tables as TSVs
+[ ] Put it up on GitHub and send link
+[x] Stacked barplot of total BGCs divided by tax_genus
+    [x] Do top 10 genera by count if we somehow have tons of cyano genera
+[x] JUST stick with Cyanos for now
+
+[ ] ~4-5 sentence Bio for me and Dan
+
+[x] How many specific NRP-metallophores in Cyanos?
+- 686 protoclusters
+- 684 regions
+
+
+# Regions
+
+```{r}
+regions
+```
+
+
+```{r}
+region_summary <- regions %>%
+    group_by(cats_str) %>%
+    mutate(n = n()) %>%
+    group_by(cats_str, n) %>%
+    summarize_at(
+        .vars = vars(region_length), 
+        .funs = list(
+            min_len = min, 
+            max_len = max, 
+            mean_len = mean, 
+            median_len = median, 
+            sd = sd
+            )
+        ) %>%
+    arrange(desc(n))
+
+region_summary
+write_tsv(region_summary, "./region_summary.tsv")
+
+# Purely informational plot -- Not needed for pub (since we have the table for it)
+category_counts <- region_summary %>% 
+    ggplot(aes(y = reorder(cats_str, desc(n)))) +
+        geom_col(aes(x = n)) +
+        scale_x_continuous(name = "BGC count", breaks = seq(0,10000,1000)) +
+        scale_y_discrete(name = "BGC Category") +
+        theme_bw()
+category_counts
+ggsave("./figs/__category_counts.svg", category_counts, device = "svg")
+ggsave("./figs/__category_counts.png", category_counts, device = "png")
+```
+
+Plot the number of BGCs by category - lumping all hybrids except NRPS-PKS
+```{r}
+# Lump any hybrid category with fewer than 500 BGCs into an "all other" category
+region_summary_lumped <- region_summary %>% 
+    mutate(group = if_else(n < 500, "All other hybrids", cats_str),
+           group = group %>% fct_reorder(n))
+
+# Keep a reference DF handy for which categories got lumped
+lump_groups <- region_summary_lumped %>% select(cats_str, group)
+
+# Use the MIBiG / antiSMASH coloring scheme
+cat_colors <- c(
+    "Polyketide" = "#f4a460",
+    "NRP" = "#2e8b57",
+    "RiPP" = "#4169e1",
+    "Terpene" = "purple",
+    "Saccharide" = "#deb887",
+    "Other" = "#191970",
+    "NRP, Polyketide" = "lightsteelblue",
+    "All other hybrids" = "gray50"
+)
+
+# Plot it
+lumped_category_counts <- region_summary_lumped %>% 
+    ggplot(aes(y = reorder(group, n))) +
+        geom_col(aes(x = n, fill = group)) +
+        scale_x_continuous(name = "BGC count", breaks = seq(0,10000,1000)) +
+        scale_y_discrete(name = "BGC Category") +
+        scale_fill_manual(values = cat_colors) +
+        theme_bw() +
+        guides(fill = FALSE)
+lumped_category_counts
+ggsave("./figs/lumped_category_counts.svg", lumped_category_counts, device = "svg")
+ggsave("./figs/lumped_category_counts.png", lumped_category_counts, device = "png")
+```
+
+Plot the distribution of BGC lengths by category (or combination of categories)
+
+```{r fig.height=10, fig.width=10}
+my_breaks <- c(1, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000)
+
+region_hist <- ggplot(regions %>% left_join(lump_groups, by = 'cats_str'), aes(
+    x = region_length / 1000,
+    # y = categories
+)) + 
+    geom_histogram(aes(fill=cats_str), bins=50) +
+    scale_x_log10(name = "BGC length (kb)", breaks = my_breaks / 1000, labels = label_comma()) +
+    scale_y_continuous(name = "BGC count", breaks = breaks_extended(n=4), labels = label_comma()) +
+    facet_grid(rows = vars(cats_str), scales = "free_y") +
+    theme_bw() + 
+    theme(strip.text.y.right = element_text(angle = 0)) +
+    guides(fill = FALSE)
+
+region_hist
+ggsave("./figs/region_hist.svg", region_hist, device = "svg")
+ggsave("./figs/region_hist.png", region_hist, device = "png")
+
+
+region_hist_lumped <- ggplot(regions %>% left_join(lump_groups, by = 'cats_str'), aes(
+    x = region_length / 1000,
+    # y = categories
+)) + 
+    geom_histogram(aes(fill=group), bins=50) +
+    scale_x_log10(name = "BGC length (kb)", breaks = my_breaks / 1000, labels = label_comma()) +
+    scale_y_continuous(name = "BGC count", breaks = breaks_extended(n=4), labels = label_comma()) +
+    scale_fill_manual(values = cat_colors) +
+    facet_wrap(vars(group), ncol = 2, scales = "free_y") +
+    theme_bw() + 
+    guides(fill = FALSE)
+region_hist_lumped
+ggsave("./figs/region_hist_lumped.svg", region_hist_lumped, device = "svg")
+ggsave("./figs/region_hist_lumped.png", region_hist_lumped, device = "png")
+```
+
+```{r fig.height=10, fig.width=10}
+category_lengths <- regions %>%
+    group_by(cats_str) %>%
+    filter(sum(n()) > 50) %>%
+    ggplot(aes(
+        x = region_length / 1000,
+    )) + 
+        geom_histogram(aes(fill=cats_str), bins=50) +
+        scale_x_log10(name = "BGC length (kb)", breaks = my_breaks / 1000, labels = label_comma()) +
+        scale_y_continuous(breaks = breaks_extended(n=4), labels = label_comma()) +
+        scale_fill_manual(name = "BGC Category", values = cat_colors) +
+        facet_grid(rows = vars(cats_str), scales = "free_y") +
+        theme_bw()
+category_lengths
+ggsave("./figs/category_lengths.svg", category_lengths, device = "svg")
+ggsave("./figs/category_lengths.png", category_lengths, device = "png")
+
+
+category_lengths_lumped <- regions %>%
+    group_by(cats_str) %>%
+    filter(sum(n()) > 500) %>%
+    ggplot(aes(
+        x = region_length / 1000,
+    )) + 
+        geom_histogram(aes(fill=cats_str), bins=50) +
+        scale_x_log10(name = "BGC length (kb)", breaks = my_breaks / 1000, labels = label_comma()) +
+        scale_y_continuous(breaks = breaks_extended(n=4), labels = label_comma()) +
+        scale_fill_manual(name = "BGC Category", values = cat_colors) +
+        facet_grid(rows = vars(cats_str), scales = "free_y") +
+        theme_bw() + 
+        theme(strip.background = element_blank(),
+              strip.text = element_blank())
+category_lengths_lumped
+ggsave("./figs/category_lengths_lumped.svg", category_lengths_lumped, device = "svg")
+ggsave("./figs/category_lengths_lumped.png", category_lengths_lumped, device = "png")
+
+```
+
+Stacked barplot of total BGCs divided by tax_genus
+
+```{r}
+regions_tax <- regions %>% 
+    select(region_gene_id, bgc_id, cats_str) %>%
+    left_join(bgc_tax, by = "bgc_id")
+
+tax_count <- regions_tax %>%
+    group_by(tax_genus, cats_str) %>%
+    summarize(num_bgcs = n()) %>%
+    mutate(tax_genus = tax_genus %>% fct_reorder(num_bgcs)) %>%
+    left_join(lump_groups, by = "cats_str")
+
+```
+
+```{r}
+# tax_count %>%
+#     group_by(tax_genus, group) %>%
+#     summarize(grp_count = sum(num_bgcs), .groups = 'drop') %>%
+#     group_by(tax_genus) %>%
+#     mutate(genus_count = sum(grp_count)) %>%
+#     filter(sum(grp_count) > 0) %>% ungroup() %>%
+#     ggplot(aes(x = fct_reorder(tax_genus, genus_count, .desc = TRUE))) +
+#         geom_col(aes(y = grp_count, fill = group), position = position_stack(reverse = TRUE)) +
+#         scale_y_continuous(name = "BGC count", breaks = seq(0,4500,500)) +
+#         scale_x_discrete(name = "Genus") +
+#         scale_fill_manual(name = "BGC Category", values = cat_colors) +
+#         coord_flip() +
+#         theme_bw() + 
+#         guides()
+
+p_all <- tax_count %>%
+    group_by(tax_genus) %>% 
+    filter(sum(num_bgcs) > 0) %>% 
+    ggplot(aes(x = fct_infreq(tax_genus, w = num_bgcs))) +
+        geom_col(aes(y = num_bgcs, fill = group), position = position_stack(reverse = TRUE)) +
+        scale_y_continuous(name = "BGC count", breaks = seq(0,4500,500)) +
+        scale_x_discrete(name = "Genus") +
+        scale_fill_manual(name = "BGC Category", values = cat_colors) +
+        coord_flip() +
+        theme_bw() + 
+        ggtitle("(all genera)")
+p_all
+ggsave("./figs/genus_counts_all.svg", p_all, device = "svg")
+ggsave("./figs/genus_counts_all.png", p_all, device = "png")
+
+p_200 <- tax_count %>%
+    group_by(tax_genus) %>% 
+    filter(sum(num_bgcs) < 200) %>% 
+    ggplot(aes(x = fct_infreq(tax_genus, w = num_bgcs))) +
+        geom_col(aes(y = num_bgcs, fill = group), position = position_stack(reverse = TRUE)) +
+        scale_fill_manual(name = "BGC Category", values = cat_colors) +
+        scale_y_continuous(name = "BGC count", breaks = seq(0,200,50), limits = c(0,200)) +
+        scale_x_discrete(name = "Genus") +
+        coord_flip() +
+        theme_bw() +
+        ggtitle("(< 200 BGCs)")
+p_200
+ggsave("./figs/genus_counts_200.svg", p_200, device = "svg")
+ggsave("./figs/genus_counts_200.png", p_200, device = "png")
+
+p_200_500 <- tax_count %>%
+    group_by(tax_genus) %>% 
+    filter(sum(num_bgcs) > 200 & sum(num_bgcs) < 500) %>% 
+    ggplot(aes(x = fct_infreq(tax_genus, w = num_bgcs))) +
+        geom_col(aes(y = num_bgcs, fill = group), position = position_stack(reverse = TRUE)) +
+        scale_y_continuous(name = "BGC count", limits = c(0,500), breaks = seq(0,500,100)) +
+        scale_x_discrete(name = "Genus") +
+        scale_fill_manual(name = "BGC Category", values = cat_colors) +
+        coord_flip() +
+        theme_bw() +
+        ggtitle("(200-500 BGCs)")
+p_200_500
+ggsave("./figs/genus_counts_200_500.svg", p_200_500, device = "svg")
+ggsave("./figs/genus_counts_200_500.png", p_200_500, device = "png")
+
+p_500 <- tax_count %>%
+    group_by(tax_genus) %>% 
+    filter(sum(num_bgcs) > 500) %>% 
+    ggplot(aes(x = fct_infreq(tax_genus, w = num_bgcs))) +
+        geom_col(aes(y = num_bgcs, fill = group), position = position_stack(reverse = TRUE)) +
+        scale_y_continuous(name = "BGC count", breaks = seq(0,4500,500)) +
+        scale_x_discrete(name = "Genus") +
+        scale_fill_manual(name = "BGC Category", values = cat_colors) +
+        coord_flip() +
+        theme_bw() + 
+        ggtitle("(>500 BGCs)")
+p_500
+ggsave("./figs/genus_counts_500plus.svg", p_500, device = "svg")
+ggsave("./figs/genus_counts_500plus.png", p_500, device = "png")
+
+```
+
+
+
+
+
+
+
+
+
+# SMC BGCs (AS-only)
+
+```{r}
+as_smc_bgcs
+```
+
+
+```{r}
+as_bgc_summary <- as_smc_bgcs %>%
+    group_by(bgc_category) %>%
+    mutate(n = n()) %>%
+    group_by(bgc_category, n) %>%
+    summarize_at(.vars = vars(smc_bgc_length), .funs = list(min = min, max = max, mean = mean, sd = sd))
+
+as_bgc_summary %>% arrange(desc(n))
+```
+
+```{r fig.dim=c(20,10)}
+my_breaks <- c(1, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000)
+
+as_bgc_hist <- ggplot(as_smc_bgcs, aes(
+    x = smc_bgc_length / 1000,
+)) + 
+    geom_histogram(aes(fill=bgc_category), bins=50) +
+    scale_x_log10(name = "BGC length (kb)", breaks = my_breaks / 1000, labels = label_comma()) +
+    scale_y_continuous(breaks = breaks_extended(n=4), labels = label_comma()) +
+    facet_grid(rows = vars(bgc_category), scales = "free_y") +
+    theme_bw() + 
+    guides(fill=FALSE)
+as_bgc_hist
+ggsave("./figs/as_bgc_hist.svg", as_bgc_hist, device = "svg")
+ggsave("./figs/as_bgc_hist.png", as_bgc_hist, device = "png")
+
+```
+
+
+# Protoclusters
+
+```{r}
+proto_summary <- protos %>%
+    group_by(proto_category) %>%
+    mutate(n = n()) %>%
+    group_by(proto_category, n) %>%
+    summarize_at(.vars = vars(proto_length), .funs = list(min = min, max = max, mean = mean, sd = sd))
+
+proto_summary
+```
+
+```{r}
+my_breaks <- c(1, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000)
+
+proto_hist <- ggplot(protos, aes(
+    x = proto_length / 1000,
+)) + 
+    geom_histogram(aes(fill=proto_category), bins=50) +
+    scale_x_log10(name = "Protocluster length (kb)", breaks = my_breaks / 1000, labels = label_comma()) +
+    scale_y_continuous(breaks = breaks_extended(n=4), labels = label_comma()) +
+    facet_grid(rows = vars(proto_category), scales = "free_y") +
+    theme_bw()
+proto_hist
+ggsave("./figs/proto_hist.svg", proto_hist, device = "svg")
+ggsave("./figs/proto_hist.png", proto_hist, device = "png")
+```
+
+```{r}
+proto_hist <- ggplot(protos, aes(
+    x = proto_length / 1000,
+    # y = proto_category
+)) + 
+    geom_histogram(aes(fill=proto_category), bins=50) +
+    scale_x_log10(name = "Protocluster length (kb)", breaks = my_breaks / 1000, labels = label_comma()) +
+    scale_y_continuous(breaks = breaks_extended(n=4), labels = label_comma()) +
+    # facet_grid(rows = vars(proto_category), scales = "free_y") +
+    facet_wrap(vars(proto_category), ncol = 2, scales = "free_y") +
+    theme_bw()
+proto_hist
+```

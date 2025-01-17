@@ -1,0 +1,88 @@
+"bgc_class_id"	"class_name"	"owner_id"	"full_name"	"bgc_category"
+58	acyl_amino_acids	1	N-acyl amino acid	Other
+40	alkaloid	1	Alkaloid	Alkaloid
+71	aminocoumarin	1	Aminocoumarin	Other
+16	arylpolyene	1	Aryl polyene	Polyketide
+11	betalactone	1	Beta-lactone containing protease inhibitor	Other
+33	blactam	1	β-lactam	Other
+31	butyrolactone	1	Butyrolactone	Other
+48	cdps	1	CDPS	NRP
+53	crocagin	1	Crocagin-like	RiPP
+45	cyanobactin	1	Cyanobactin	RiPP
+23	ectoine	1	Ectoine	Other
+49	epipeptide	1	Epipeptide	RiPP
+69	furan	1	Furan	Other
+47	glycocin	1	Glycocin	RiPP
+73	guanidinotides	1	Guanidinotides	RiPP
+52	hgle-ks	1	hglE-KS	Polyketide
+22	hserlactone	1	Homoserine lactone	Other
+38	indole	1	Indole	Other
+17	ladderane	1	Ladderane	Polyketide
+51	lanthipeptide-class-ii	1	Class II lanthipeptide	RiPP
+36	lanthipeptide-class-iii	1	Class III lanthipeptide	RiPP
+39	lanthipeptide-class-iv	1	Class IV lanthipeptide	RiPP
+10	lap	1	LAP	RiPP
+19	lassopeptide	1	Lassopeptide	RiPP
+62	linaridin	1	Linaridin	RiPP
+34	melanin	1	Melanin	Other
+68	microviridin	1	Microviridin	RiPP
+67	mycosporine-like	1	Mycosporine-like	NRP
+50	naggn	1	NAGGN	Other
+29	napaa	1	NAPAA	NRP
+4	nrp	1	NRP	NRP
+6	nrps	1	NRPS	NRP
+18	nrps-independent-siderophore	1	NI-siderophore	Other
+30	nrps-like	1	NRPS-like	NRP
+35	nucleoside	1	Nucleoside	Other
+57	oligosaccharide	1	Oligosaccharide	Saccharide
+14	other	1	Other	Other
+59	phenazine	1	Phenazine	Other
+41	phosphoglycolipid	1	Phosphoglycolipid	Other
+21	phosphonate	1	Phosphonate	Other
+27	pks-like	1	PKS-like	Polyketide
+3	polyketide	1	Polyketide	Polyketide
+63	ppys-ks	1	PpyS-KS	Polyketide
+64	prodigiosin	1	Prodigiosin	Polyketide
+66	proteusin	1	Proteusin	RiPP
+60	pufa	1	PUFA	Polyketide
+7	ranthipeptide	1	Ranthipeptide	RiPP
+25	redox-cofactor	1	Redox cofactor	RiPP
+61	resorcinol	1	Resorcinol	Other
+2	ripp	1	RiPP	RiPP
+13	ripp-like	1	RiPP-like	RiPP
+9	saccharide	1	Saccharide	Saccharide
+44	sactipeptide	1	Sactipeptide	RiPP
+72	spliceotide	1	Spliceotide	RiPP
+26	t1pks	1	T1PKS	Polyketide
+37	t2pks	1	T2PKS	Polyketide
+24	t3pks	1	T3PKS	Polyketide
+12	terpene	1	Terpene	Terpene
+55	thioamitides	1	Thioamitide	RiPP
+15	thiopeptide	1	Thiopeptide	RiPP
+46	transat-pks	1	Trans-AT PKS	Polyketide
+74	tropodithietic-acid	1	Tropodithietic acid	Other
+42	"2dos"	1	"2-deoxy-streptamine aminoglycoside"	Other
+28	amglyccycl	1	Aminoglycoside/aminocyclitol	Other
+32	aminopolycarboxylic-acid	1	Aminopolycarboxylic acid metallophores	Other
+77	bottromycin	1	Bottromycin	RiPP
+8	cyclic-lactone-autoinducer	1	Cyclic lactone autoinducer	RiPP
+80	fungal-ripp-like	1	Fungal RiPP-like	RiPP
+20	lanthipeptide-class-i	1	Class I lanthipeptide	RiPP
+56	lanthipeptide-class-v	1	Class V lanthipeptide	RiPP
+79	lipolanthine	1	Lipolanthine	RiPP
+78	methanobactin	1	Methanobactin	RiPP
+5	nrp-metallophore	1	NRP-metallophore	NRP
+43	opine-like-metallophore	1	Opine-like metallophore	Other
+75	pbde	1	PBDE	Other
+76	pyrrolidine	1	Pyrrolidine	Other
+70	ras-ripp	1	RaS-RiPP	RiPP
+1	rre-containing	1	RRE-containing	RiPP
+65	thioamide-nrp	1	Thioamide-NRP	NRP
+54	transat-pks-like	1	Trans-AT PKS-like	Polyketide
+81	archaeal-ripp	1	NA	NA
+82	ni-siderophore	1	NA	NA
+83	triceptide	1	NA	NA
+84	darobactin	1	NA	NA
+85	hydrogen-cyanide	1	NA	NA
+86	hr-t2pks	1	NA	NA
+87	phosphonate-like	1	NA	NA
