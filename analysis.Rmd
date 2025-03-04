@@ -2,12 +2,12 @@
 title: "Analysis of BGC content across phylum Cyanobacteriota"
 mainfont: Arial
 output:
-  pdf_document: 
-    keep_tex: yes
-    latex_engine: xelatex
   html_document:
     code_folding: hide
     code_download: yes
+  pdf_document: 
+    keep_tex: yes
+    latex_engine: xelatex
 ---
 
 # Setup
@@ -101,7 +101,8 @@ regions %>%
   theme_bw() +
   ggtitle("Fragmented genomes have inflated BGC counts", subtitle = "Full dataset")
 ```
-This figure depicts the number of BGCs against the number of scaffolds in a genome. To help avoid overplotting (i.e. many overlapping data points misrepresenting the distribution of the data), the colors of each spot in the figure correspond to how many data points overlap at those coordinates. 
+
+This figure depicts the number of BGCs against the number of scaffolds in a genome. To help avoid overplotting (i.e. many overlapping data points misrepresenting the distribution of the data), the colors of each spot in the figure correspond to how many data points overlap at those coordinates.
 
 ### How does the proportion of BGCs off/on a contig edge change if we filter for high-quality genomes in different ways?
 
@@ -159,6 +160,7 @@ ggplot(filters_df, aes(x = filter, y = n)) +
   coord_flip()
 
 ```
+
 This figure depicts the counts of BGCs that are on a contig edge vs. those that are not, depending on how we define what a "high-quality genome" is. `Complete/Chromosome` refers to the genomes at the "Complete" or "Chromosome" assembly levels on NCBI.
 
 Based on this figure, and to be most conservative in this analysis, we will be going with the most restrictive criteria -- using only genomes of "Chromosome" or "Complete" assembly quality as listed on NCBI.
@@ -210,7 +212,6 @@ region_summary <- regions %>%
 region_summary
 write_tsv(region_summary, "./region_summary.tsv")
 ```
-
 
 ### How many BGCs in each category? (counting hybrids of categories as separate)
 
@@ -313,8 +314,8 @@ ggsave("./figs/svg/region_hist_lumped.svg", region_hist_lumped, device = "svg")
 ggsave("./figs/png/region_hist_lumped.png", region_hist_lumped, device = "png")
 ```
 
-
 ### How does BGC count vary across genera and by category?
+
 Table:
 
 ```{r}
@@ -346,7 +347,7 @@ ggsave("./figs/svg/genus_counts_all.svg", p_all, device = "svg")
 ggsave("./figs/png/genus_counts_all.png", p_all, device = "png")
 ```
 
-In order to normalize BGC counts to a per-genome basis, we must also know how many Cyano genomes _lacked_ BGCs (as detected by antiSMASH).
+In order to normalize BGC counts to a per-genome basis, we must also know how many Cyano genomes *lacked* BGCs (as detected by antiSMASH).
 
 ```{r}
 # Plaintext file listing all the accessions that had no BGCs
@@ -544,5 +545,5 @@ bottom_row <- plot_grid(p_b, p_c, nrow = 1, labels = c("B", "C"), label_size = 1
 fig2 <- plot_grid(p_a, bottom_row, nrow = 2, labels = c("A", ""), label_size = 12, rel_heights = c(2.5, 1))
 fig2
 ggsave("./figs/_fig2.png", fig2, width = 7, height = 10, device = "png")
-ggsave("./figs/_fig2.pdf", fig2, width = 7, height = 7, device = "pdf")
+ggsave("./figs/_fig2.pdf", fig2, width = 7, height = 10, device = "pdf")
 ```
