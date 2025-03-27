@@ -9,3 +9,19 @@ The `data/` directory contains the input files used in the analysis, which were 
 The `figs/` directory contains the combined Figure 2 in PDF and PNG format, as well as subdirectories containing all the figures generated in the analysis in both PDF and PNG format.
 
 There will be dedicated "versions" tagged for the repository to mark it's state as it undergoes review, with a dedicated tag for the state of the repository when it is accepted for publication, since there may be changes/improvements both before and after paper acceptance.
+
+
+
+The data from NCBI was collected as follows:
+
+For the genome metadata:
+
+```sh
+datasets summary genome taxon "cyanobacteriota" --as-json-lines | dataformat tsv genome --fields accession,assminfo-level,organism-tax-id > cyanos_genomes_taxids.tsv
+```
+
+For the taxonomy data:
+
+```sh
+datasets download taxonomy taxon --inputfile ncbi_cyanos_taxids.txt --filename ncbi_tax.json
+```

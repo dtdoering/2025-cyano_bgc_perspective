@@ -2,12 +2,12 @@
 title: "Analysis of BGC content across phylum Cyanobacteriota"
 mainfont: Arial
 output:
-  html_document:
-    code_folding: hide
-    code_download: yes
   pdf_document: 
     keep_tex: yes
     latex_engine: xelatex
+  html_document:
+    code_folding: hide
+    code_download: yes
 ---
 
 # Setup
@@ -40,7 +40,7 @@ library(hexbin)
 
 ```{r}
 # Map antiSMASH classes to their categories
-bgc_class <- read_tsv("./data/2025-01-16-1256-bgc_class_ref.tsv") %>% select(!owner_id)
+bgc_class <- read_tsv("data/2025-01-16-1256-bgc_class_ref.tsv") %>% select(!owner_id)
 class_to_cat <- bgc_class$bgc_category
 names(class_to_cat) <- bgc_class$class_name
 
@@ -48,17 +48,54 @@ names(class_to_cat) <- bgc_class$class_name
 cyano_asm_tax <- read_tsv("data/cyano_asm_tax.tsv")
 
 # From SMC: All antiSMASH 'region's for Cyanobacteriota genomes
-regions <- read_tsv("./data/2025-02-26-1456-cyano_as_regions.tsv")
+regions_unfiltered <- read_tsv("data/2025-02-26-1456-cyano_as_regions.tsv")
 
 # Table of NCBI assemblies at "chromosome" or "complete" quality levels
 ncbi_hiq_meta <- read_tsv("data/ncbi_cyano_HiQualityGenomes_metadata.tsv")
+
+cyano_tax_dataset <- read_tsv("data/taxonomy_summary.tsv")
+cyano_asm_dataset <- read_tsv("data/cyanos_genomes_taxids.tsv") %>% 
+    left_join(cyano_tax_dataset, by = join_by('Organism Taxonomic ID' == 'Taxid')) %>% 
+    select(
+        `Assembly Accession`, 
+        `Assembly Level`, 
+        `Organism Taxonomic ID`, 
+        `Superkingdom name`, 
+        `Kingdom name`, 
+        `Phylum name`, 
+        `Class name`, 
+        `Order name`, 
+        `Family name`, 
+        `Genus name`, 
+        `Species name`
+    )
+
+# BiG-SLiCE results for getting GCF counts per genus
+bigslice_df <- read_tsv("data/2025-03-14-1524-bigslice_results.tsv") %>% 
+    left_join(cyano_asm_dataset, by = join_by('orig_folder' == 'Assembly Accession')) %>%
+    rename(
+        'asm_level' = `Assembly Level`, 
+        'taxid' = `Organism Taxonomic ID`, 
+        'superkingdom' = `Superkingdom name`, 
+        'kingdom' = `Kingdom name`, 
+        'phylum' = `Phylum name`, 
+        'class' = `Class name`, 
+        'order' = `Order name`, 
+        'family' = `Family name`, 
+        'genus' = `Genus name`, 
+        'species' = `Species name`
+    ) %>%
+    replace_na(list(genus = "Unclassified"))
+
+gcf_df <- bigslice_df %>% select(genus, gcf_id) %>% distinct() %>% count(genus, name = "n_gcfs")
 ```
 
 ## Clean data
 
 ```{r}
-# Convert BGC 'class' to vector, add in BGC 'category' as vector, order levels of classes and categories
-regions <- regions %>%
+# Convert BGC 'class' to vector, add in BGC 'category' as vector, order levels 
+# of classes and categories
+regions_unfiltered <- regions_unfiltered %>%
   mutate(classes = map(region_class, function(class_string) {
     (
       if (str_starts(class_string, fixed("["))) {
@@ -79,17 +116,21 @@ regions <- regions %>%
     class_str = classes %>% map_chr(function(x) str_flatten(x, collapse = ", "))
   )
 
-regions
+regions_unfiltered
 ```
 
 ## Explore data
 
 The repetitive composition of many BGCs makes them a challenge during genome assembly, resulting in over-inflation of BGC counts when BGCs are split between the ends of two different contigs. Focusing on high-quality genomes can therefore ensure a higher-quality dataset.
 
+### Basic summary
+
+There are `r regions_unfiltered %>% pull(smc_id) %>% unique() %>% length()` genomes and `r nrow(regions_unfiltered)` BGCs in the initial dataset.
+
 ### How fragmented are the full set of genomes, and how does that impact BGC counts?
 
 ```{r fig.asp=0.62*2}
-regions %>%
+regions_unfiltered %>%
   group_by(smc_id, n_scaffolds, contig_edge) %>%
   summarize(n_bgcs = n()) %>%
   ungroup() %>%
@@ -108,42 +149,42 @@ This figure depicts the number of BGCs against the number of scaffolds in a geno
 
 ```{r}
 filters_df <- bind_rows(
-  regions %>%
+  regions_unfiltered %>%
     group_by(contig_edge) %>%
     summarize(filter = "Unfiltered", n = n()) %>%
     ungroup() %>%
     mutate(pct = 100 * n / sum(n)),
-  regions %>%
+  regions_unfiltered %>%
     semi_join(ncbi_hiq_meta, by = join_by(accession_id == `Assembly Accession`)) %>%
     group_by(contig_edge) %>%
     summarize(filter = "Complete/Chromosome", n = n()) %>%
     mutate(pct = 100 * n / sum(n)),
-  regions %>%
+  regions_unfiltered %>%
     filter(n_scaffolds < 10) %>%
     group_by(contig_edge) %>%
     summarize(filter = "< 10 Scaffolds", n = n()) %>%
     mutate(pct = 100 * n / sum(n)),
-  regions %>%
+  regions_unfiltered %>%
     filter(n_scaffolds < 20) %>%
     group_by(contig_edge) %>%
     summarize(filter = "< 20 Scaffolds", n = n()) %>%
     mutate(pct = 100 * n / sum(n)),
-  regions %>%
+  regions_unfiltered %>%
     filter(n_scaffolds < 25) %>%
     group_by(contig_edge) %>%
     summarize(filter = "< 25 Scaffolds", n = n()) %>%
     mutate(pct = 100 * n / sum(n)),
-  regions %>%
+  regions_unfiltered %>%
     filter(n_scaffolds < 30) %>%
     group_by(contig_edge) %>%
     summarize(filter = "< 30 Scaffolds", n = n()) %>%
     mutate(pct = 100 * n / sum(n)),
-  regions %>%
+  regions_unfiltered %>%
     filter(n_scaffolds < 50) %>%
     group_by(contig_edge) %>%
     summarize(filter = "< 50 Scaffolds", n = n()) %>%
     mutate(pct = 100 * n / sum(n)),
-  regions %>%
+  regions_unfiltered %>%
     filter(n_scaffolds < 100) %>%
     group_by(contig_edge) %>%
     summarize(filter = "< 100 Scaffolds", n = n()) %>%
@@ -169,10 +210,14 @@ Based on this figure, and to be most conservative in this analysis, we will be g
 
 Repeat the figure from above, and we should see that most BGCs are not on a contig edge.
 
-```{r fig.asp=0.62*2}
-regions <- regions %>%
+```{r}
+regions <- regions_unfiltered %>%
   semi_join(ncbi_hiq_meta, by = join_by(accession_id == `Assembly Accession`))
+```
 
+Now, there are `r regions %>% pull(smc_id) %>% unique() %>% length()` genomes and `r nrow(regions)` BGCs represented in the dataset.
+
+```{r fig.asp=0.62*2, echo=FALSE}
 regions %>%
   group_by(smc_id, tax_genus, n_scaffolds, contig_edge) %>%
   summarize(n_bgcs = n()) %>%
@@ -215,7 +260,9 @@ write_tsv(region_summary, "./region_summary.tsv")
 
 ### How many BGCs in each category? (counting hybrids of categories as separate)
 
-```{r}
+Here are the numbers 
+
+```{r include=FALSE}
 category_counts <- region_summary %>%
   ggplot(aes(y = reorder(cats_str, desc(n)))) +
   geom_col(aes(x = n)) +
@@ -296,7 +343,7 @@ Lumped categories (again, except for NRPS-PKS hybrids)
 
 ```{r}
 region_hist_lumped <- regions_lumped %>%
-  filter(group != "All other hybrids") %>%
+  # filter(group != "All other hybrids") %>%
   ggplot(aes(x = region_length / 1000)) +
   geom_histogram(aes(fill = group), bins = 50) +
   scale_x_log10(name = "BGC length (kb)", guide = "axis_logticks", limits = c(1, NA), breaks = c(1, 5, 10, 50, 100, 200)) +
@@ -389,7 +436,6 @@ p_bgc_dens <- df_plots %>%
   coord_flip() +
   theme_bw() +
   theme(legend.position = "bottom")
-# p_bgc_dens
 
 # Plot total BGC count by genus
 p_bgc_ct <- df_plots %>%
@@ -428,7 +474,6 @@ p_genome_ct <- genome_counts %>%
     axis.title.y = element_blank(),
     axis.text.y = element_blank()
   )
-# p_genome_ct
 
 # Plot them all together
 p4 <- plot_grid(p_bgc_dens, p_bgc_ct, p_genome_ct, align = "h", rel_widths = c(3, 1, 1), nrow = 1)
@@ -439,30 +484,37 @@ ggsave("./figs/png/split_proportional.png", p4, width = 8, height = 11, device =
 Plot the BGCs per genome (not normalized to 100%) alongside number of BGCs per genus and genomes per genus
 
 ```{r}
-# Prepare a dataframe specific to this set of plots
-# df_plots <- tax_count %>%
-#   filter(tax_genus != "Unclassified") %>%
-#   left_join(genomes_by_genus, by = "tax_genus") %>%
-#   mutate(bgc_dens = num_bgcs / tot_genomes) %>%
-#   group_by(tax_genus) %>%
-#   mutate(tot_bgc_dens = sum(bgc_dens), tot_bgcs = sum(num_bgcs))
+# Specific ordering for genus names to enforce for other plots
+genus_order <- df_plots %>% 
+    ungroup() %>% 
+    mutate(tax_genus = fct_reorder(tax_genus, tot_bgc_dens, .desc = T)) %>% 
+    pull(tax_genus) %>% 
+    levels()
 
 # Plot BGCs per genome, colored by category and divided by genus
 p_bgc_dens <- df_plots %>%
-  ggplot(aes(x = fct_reorder(tax_genus, tot_bgc_dens, .desc = T))) +
+  ggplot(aes(x = fct_relevel(tax_genus, genus_order))) +
   geom_col(aes(y = bgc_dens, fill = group), position = position_stack(reverse = TRUE)) +
-  scale_y_continuous(name = "BGCs per genome") +
+  scale_y_continuous(name = "BGCs per genome", expand = expansion(add = c(0.1,1))) +
   scale_x_discrete(name = "Genus") +
-  scale_fill_manual(name = "BGC Category", values = cat_colors) +
+  scale_fill_manual(
+      name = "BGC Category", 
+      values = cat_colors,
+      guide = guide_legend(position = "inside")
+  ) +
   coord_flip() +
-  guides(fill = guide_legend(position = "inside")) +
-  theme_bw() +
-  theme(legend.justification.inside = c(0.99, 0.99))
-# p_bgc_dens
+  theme_bw() + 
+  theme(
+    legend.title = element_text(face = "bold", size = rel(0.6)),
+    legend.key.height = unit(0.25, "cm"),
+    legend.key.width = unit(0.25, "cm"),
+    legend.justification.inside = c(0.98, 0.99),
+    axis.text.y = element_text(face = "italic", size = rel(0.8), vjust = 0.5)
+    )
 
 # Plot total BGC count by genus
 p_bgc_ct <- df_plots %>%
-  ggplot(aes(x = fct_reorder(tax_genus, tot_bgc_dens, .desc = T))) +
+  ggplot(aes(x = fct_relevel(tax_genus, genus_order))) +
   geom_col(aes(y = tot_bgcs), data = df_plots %>% select(tax_genus, tot_bgcs, tot_bgc_dens) %>% distinct()) +
   scale_y_continuous(
     name = "BGC count",
@@ -476,15 +528,8 @@ p_bgc_ct <- df_plots %>%
     axis.text.y = element_blank()
   )
 
-# Plot genome count by genus
-# genome_counts <- df_plots %>%
-#   group_by(tax_genus, tot_genomes) %>%
-#   summarize(tot_bgc_dens = sum(bgc_dens), tot_bgcs = sum(num_bgcs)) %>%
-#   arrange(tot_bgc_dens)
-# genome_counts
-
 p_genome_ct <- genome_counts %>%
-  ggplot(aes(x = fct_reorder(tax_genus, tot_bgc_dens, .desc = T))) +
+  ggplot(aes(x = fct_relevel(tax_genus, genus_order))) +
   geom_col(aes(y = tot_genomes)) +
   scale_y_continuous(name = "Genome count", trans = scales::transform_pseudo_log(base = 10), breaks = c(0, 1, 5, 10, 100, 1000)) +
   coord_flip() +
@@ -493,10 +538,21 @@ p_genome_ct <- genome_counts %>%
     axis.title.y = element_blank(),
     axis.text.y = element_blank()
   )
-# p_genome_ct
+
+p_gcf_ct <- gcf_df %>%
+    filter(genus %in% genome_counts$tax_genus) %>%
+    ggplot(aes(x = fct_relevel(genus, genus_order))) +
+    geom_col(aes(y = n_gcfs)) +
+    scale_y_continuous(name = "GCF count", trans = scales::transform_pseudo_log(base = 10), breaks = c(0, 1, 5, 10, 100, 500)) +
+    coord_flip() +
+    theme_bw() +
+    theme(
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank()
+    )
 
 # Plot them all together
-p5 <- plot_grid(p_bgc_dens, p_bgc_ct, p_genome_ct, align = "h", rel_widths = c(3, 1, 1), nrow = 1)
+p5 <- plot_grid(p_bgc_dens, p_bgc_ct, p_gcf_ct, p_genome_ct, align = "h", rel_widths = c(3, 1, 1, 1), nrow = 1)
 df_plots
 p5
 ggsave("./figs/png/split_triple.png", p5, width = 8, height = 11, device = "png")
@@ -504,13 +560,38 @@ ggsave("./figs/png/split_triple.png", p5, width = 8, height = 11, device = "png"
 
 ## Create Figure 2 for the manuscript
 
-```{r fig.height=10, fig.width=7}
+```{r fig.height=9.17, fig.width=6.73}
+sm_margin <- unit(c(0.05, 0.05, 0.05, 0.05), "cm")
+
 p_a <- plot_grid(
-    p_bgc_dens + theme(axis.text.y = element_text(size = 8)), 
-    p_bgc_ct, 
-    p_genome_ct, 
+    p_bgc_dens + theme(
+        legend.title = element_text(face = "bold", size = rel(0.8)),
+        legend.key.label = element_text(size = rel(0.8)),
+        legend.key.height = unit(0.25, "cm"),
+        legend.key.width = unit(0.25, "cm"),
+        legend.justification.inside = c(0.98, 0.99),
+        axis.text.y = element_text(face = "italic", size = rel(0.8), vjust = 0.5),
+        axis.text.x = element_text(size = rel(0.8)),
+        plot.margin = sm_margin
+        ), 
+    p_bgc_ct + theme(
+        axis.text.x = element_text(size = rel(0.8)),
+        axis.ticks.y = element_blank(),
+        plot.margin = sm_margin
+    ), 
+    p_gcf_ct + theme(
+        axis.text.x = element_text(size = rel(0.8)),
+        axis.ticks.y = element_blank(),
+        plot.margin = sm_margin
+    ),
+    p_genome_ct + theme(
+        axis.text.x = element_text(size = rel(0.8)),
+        plot.background = element_rect(fill = NA),
+        axis.ticks.y = element_blank(),
+        plot.margin = unit(c(0.05, 0.15, 0.05, 0.05), "cm")
+    ), 
     align = "h", 
-    rel_widths = c(3, 1, 1), 
+    rel_widths = c(3, 1, 1, 1), 
     nrow = 1
     )
 
@@ -526,7 +607,6 @@ p_b <- ggplot(
   guides(fill = "none")
 
 p_c <- regions_lumped %>%
-  filter(group != "All other hybrids") %>%
   ggplot(aes(x = region_length / 1000)) +
       geom_histogram(aes(fill = group), bins = 50) +
       scale_x_log10(name = "BGC length (kb)", guide = "axis_logticks", limits = c(1, NA), breaks = c(1, 5, 10, 50, 100, 200)) +
@@ -537,13 +617,15 @@ p_c <- regions_lumped %>%
       theme_bw() +
       theme(
         strip.background = element_blank(),
-        strip.text = element_blank()
+        strip.text = element_blank(),
+        axis.text.y = element_text(size = rel(0.8)),
+        panel.spacing = unit(0.25, "lines")
       )
 
 bottom_row <- plot_grid(p_b, p_c, nrow = 1, labels = c("B", "C"), label_size = 12)
 
 fig2 <- plot_grid(p_a, bottom_row, nrow = 2, labels = c("A", ""), label_size = 12, rel_heights = c(2.5, 1))
 fig2
-ggsave("./figs/_fig2.png", fig2, width = 7, height = 10, device = "png")
-ggsave("./figs/_fig2.pdf", fig2, width = 7, height = 10, device = "pdf")
+ggsave("./figs/_fig2.png", fig2, width = 6.73, height = 9.17, units = "in", device = "png")
+ggsave("./figs/_fig2.pdf", fig2, width = 6.73, height = 9.17, units = "in", device = "pdf")
 ```

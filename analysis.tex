@@ -130,10 +130,46 @@
 \NormalTok{cyano\_asm\_tax }\OtherTok{\textless{}{-}} \FunctionTok{read\_tsv}\NormalTok{(}\StringTok{"data/cyano\_asm\_tax.tsv"}\NormalTok{)}
 
 \CommentTok{\# From SMC: All antiSMASH \textquotesingle{}region\textquotesingle{}s for Cyanobacteriota genomes}
-\NormalTok{regions }\OtherTok{\textless{}{-}} \FunctionTok{read\_tsv}\NormalTok{(}\StringTok{"./data/2025{-}02{-}26{-}1456{-}cyano\_as\_regions.tsv"}\NormalTok{)}
+\NormalTok{regions\_unfiltered }\OtherTok{\textless{}{-}} \FunctionTok{read\_tsv}\NormalTok{(}\StringTok{"./data/2025{-}02{-}26{-}1456{-}cyano\_as\_regions.tsv"}\NormalTok{)}
 
 \CommentTok{\# Table of NCBI assemblies at "chromosome" or "complete" quality levels}
 \NormalTok{ncbi\_hiq\_meta }\OtherTok{\textless{}{-}} \FunctionTok{read\_tsv}\NormalTok{(}\StringTok{"data/ncbi\_cyano\_HiQualityGenomes\_metadata.tsv"}\NormalTok{)}
+
+\NormalTok{cyano\_tax\_dataset }\OtherTok{\textless{}{-}} \FunctionTok{read\_tsv}\NormalTok{(}\StringTok{"data/taxonomy\_summary.tsv"}\NormalTok{)}
+\NormalTok{cyano\_asm\_dataset }\OtherTok{\textless{}{-}} \FunctionTok{read\_tsv}\NormalTok{(}\StringTok{"data/cyanos\_genomes\_taxids.tsv"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+    \FunctionTok{left\_join}\NormalTok{(cyano\_tax\_dataset, }\AttributeTok{by =} \FunctionTok{join\_by}\NormalTok{(}\StringTok{\textquotesingle{}Organism Taxonomic ID\textquotesingle{}} \SpecialCharTok{==} \StringTok{\textquotesingle{}Taxid\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%} 
+    \FunctionTok{select}\NormalTok{(}
+        \StringTok{\textasciigrave{}}\AttributeTok{Assembly Accession}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Assembly Level}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Organism Taxonomic ID}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Superkingdom name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Kingdom name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Phylum name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Class name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Order name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Family name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Genus name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textasciigrave{}}\AttributeTok{Species name}\StringTok{\textasciigrave{}}
+\NormalTok{    )}
+
+\CommentTok{\# BiG{-}SLiCE results for getting GCF counts per genus}
+\NormalTok{bigslice\_df }\OtherTok{\textless{}{-}} \FunctionTok{read\_tsv}\NormalTok{(}\StringTok{"data/2025{-}03{-}14{-}1524{-}bigslice\_results.tsv"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%} 
+    \FunctionTok{left\_join}\NormalTok{(cyano\_asm\_dataset, }\AttributeTok{by =} \FunctionTok{join\_by}\NormalTok{(}\StringTok{\textquotesingle{}orig\_folder\textquotesingle{}} \SpecialCharTok{==} \StringTok{\textquotesingle{}Assembly Accession\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{rename}\NormalTok{(}
+        \StringTok{\textquotesingle{}asm\_level\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Assembly Level}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}taxid\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Organism Taxonomic ID}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}superkingdom\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Superkingdom name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}kingdom\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Kingdom name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}phylum\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Phylum name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}class\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Class name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}order\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Order name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}family\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Family name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}genus\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Genus name}\StringTok{\textasciigrave{}}\NormalTok{, }
+        \StringTok{\textquotesingle{}species\textquotesingle{}} \OtherTok{=} \StringTok{\textasciigrave{}}\AttributeTok{Species name}\StringTok{\textasciigrave{}}
+\NormalTok{    ) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{replace\_na}\NormalTok{(}\FunctionTok{list}\NormalTok{(}\AttributeTok{genus =} \StringTok{"Unclassified"}\NormalTok{))}
+
+\NormalTok{gcf\_df }\OtherTok{\textless{}{-}}\NormalTok{ bigslice\_df }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{select}\NormalTok{(genus, gcf\_id) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{distinct}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{count}\NormalTok{(genus, }\AttributeTok{name =} \StringTok{"n\_gcfs"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -142,8 +178,9 @@
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\CommentTok{\# Convert BGC \textquotesingle{}class\textquotesingle{} to vector, add in BGC \textquotesingle{}category\textquotesingle{} as vector, order levels of classes and categories}
-\NormalTok{regions }\OtherTok{\textless{}{-}}\NormalTok{ regions }\SpecialCharTok{\%\textgreater{}\%}
+\CommentTok{\# Convert BGC \textquotesingle{}class\textquotesingle{} to vector, add in BGC \textquotesingle{}category\textquotesingle{} as vector, order levels }
+\CommentTok{\# of classes and categories}
+\NormalTok{regions\_unfiltered }\OtherTok{\textless{}{-}}\NormalTok{ regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
   \FunctionTok{mutate}\NormalTok{(}\AttributeTok{classes =} \FunctionTok{map}\NormalTok{(region\_class, }\ControlFlowTok{function}\NormalTok{(class\_string) \{}
 \NormalTok{    (}
       \ControlFlowTok{if}\NormalTok{ (}\FunctionTok{str\_starts}\NormalTok{(class\_string, }\FunctionTok{fixed}\NormalTok{(}\StringTok{"["}\NormalTok{))) \{}
@@ -164,7 +201,7 @@
     \AttributeTok{class\_str =}\NormalTok{ classes }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{map\_chr}\NormalTok{(}\ControlFlowTok{function}\NormalTok{(x) }\FunctionTok{str\_flatten}\NormalTok{(x, }\AttributeTok{collapse =} \StringTok{", "}\NormalTok{))}
 \NormalTok{  )}
 
-\NormalTok{regions}
+\NormalTok{regions\_unfiltered}
 \end{Highlighting}
 \end{Shaded}
 
@@ -199,6 +236,11 @@ genome assembly, resulting in over-inflation of BGC counts when BGCs are
 split between the ends of two different contigs. Focusing on
 high-quality genomes can therefore ensure a higher-quality dataset.
 
+\hypertarget{basic-summary}{%
+\subsubsection{Basic summary}\label{basic-summary}}
+
+There are 4090 genomes and 32112 BGCs in the initial dataset.
+
 \hypertarget{how-fragmented-are-the-full-set-of-genomes-and-how-does-that-impact-bgc-counts}{%
 \subsubsection{How fragmented are the full set of genomes, and how does
 that impact BGC
@@ -206,7 +248,7 @@ counts?}\label{how-fragmented-are-the-full-set-of-genomes-and-how-does-that-impa
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
   \FunctionTok{group\_by}\NormalTok{(smc\_id, n\_scaffolds, contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
   \FunctionTok{summarize}\NormalTok{(}\AttributeTok{n\_bgcs =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
   \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
@@ -220,11 +262,12 @@ counts?}\label{how-fragmented-are-the-full-set-of-genomes-and-how-does-that-impa
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-3-1.pdf} This
-figure depicts the number of BGCs against the number of scaffolds in a
-genome. To help avoid overplotting (i.e.~many overlapping data points
-misrepresenting the distribution of the data), the colors of each spot
-in the figure correspond to how many data points overlap at those
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-3-1.pdf}
+
+This figure depicts the number of BGCs against the number of scaffolds
+in a genome. To help avoid overplotting (i.e.~many overlapping data
+points misrepresenting the distribution of the data), the colors of each
+spot in the figure correspond to how many data points overlap at those
 coordinates.
 
 \hypertarget{how-does-the-proportion-of-bgcs-offon-a-contig-edge-change-if-we-filter-for-high-quality-genomes-in-different-ways}{%
@@ -235,42 +278,42 @@ ways?}\label{how-does-the-proportion-of-bgcs-offon-a-contig-edge-change-if-we-fi
 \begin{Shaded}
 \begin{Highlighting}[]
 \NormalTok{filters\_df }\OtherTok{\textless{}{-}} \FunctionTok{bind\_rows}\NormalTok{(}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"Unfiltered"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{mutate}\NormalTok{(}\AttributeTok{pct =} \DecValTok{100} \SpecialCharTok{*}\NormalTok{ n }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(n)),}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{semi\_join}\NormalTok{(ncbi\_hiq\_meta, }\AttributeTok{by =} \FunctionTok{join\_by}\NormalTok{(accession\_id }\SpecialCharTok{==} \StringTok{\textasciigrave{}}\AttributeTok{Assembly Accession}\StringTok{\textasciigrave{}}\NormalTok{)) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"Complete/Chromosome"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{mutate}\NormalTok{(}\AttributeTok{pct =} \DecValTok{100} \SpecialCharTok{*}\NormalTok{ n }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(n)),}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{filter}\NormalTok{(n\_scaffolds }\SpecialCharTok{\textless{}} \DecValTok{10}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"\textless{} 10 Scaffolds"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{mutate}\NormalTok{(}\AttributeTok{pct =} \DecValTok{100} \SpecialCharTok{*}\NormalTok{ n }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(n)),}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{filter}\NormalTok{(n\_scaffolds }\SpecialCharTok{\textless{}} \DecValTok{20}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"\textless{} 20 Scaffolds"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{mutate}\NormalTok{(}\AttributeTok{pct =} \DecValTok{100} \SpecialCharTok{*}\NormalTok{ n }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(n)),}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{filter}\NormalTok{(n\_scaffolds }\SpecialCharTok{\textless{}} \DecValTok{25}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"\textless{} 25 Scaffolds"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{mutate}\NormalTok{(}\AttributeTok{pct =} \DecValTok{100} \SpecialCharTok{*}\NormalTok{ n }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(n)),}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{filter}\NormalTok{(n\_scaffolds }\SpecialCharTok{\textless{}} \DecValTok{30}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"\textless{} 30 Scaffolds"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{mutate}\NormalTok{(}\AttributeTok{pct =} \DecValTok{100} \SpecialCharTok{*}\NormalTok{ n }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(n)),}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{filter}\NormalTok{(n\_scaffolds }\SpecialCharTok{\textless{}} \DecValTok{50}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"\textless{} 50 Scaffolds"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{mutate}\NormalTok{(}\AttributeTok{pct =} \DecValTok{100} \SpecialCharTok{*}\NormalTok{ n }\SpecialCharTok{/} \FunctionTok{sum}\NormalTok{(n)),}
-\NormalTok{  regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{filter}\NormalTok{(n\_scaffolds }\SpecialCharTok{\textless{}} \DecValTok{100}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{group\_by}\NormalTok{(contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
     \FunctionTok{summarize}\NormalTok{(}\AttributeTok{filter =} \StringTok{"\textless{} 100 Scaffolds"}\NormalTok{, }\AttributeTok{n =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
@@ -288,10 +331,11 @@ ways?}\label{how-does-the-proportion-of-bgcs-offon-a-contig-edge-change-if-we-fi
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-4-1.pdf} This
-figure depicts the counts of BGCs that are on a contig edge vs.~those
-that are not, depending on how we define what a ``high-quality genome''
-is. \texttt{Complete/Chromosome} refers to the genomes at the
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-4-1.pdf}
+
+This figure depicts the counts of BGCs that are on a contig edge
+vs.~those that are not, depending on how we define what a ``high-quality
+genome'' is. \texttt{Complete/Chromosome} refers to the genomes at the
 ``Complete'' or ``Chromosome'' assembly levels on NCBI.
 
 Based on this figure, and to be most conservative in this analysis, we
@@ -307,22 +351,14 @@ on a contig edge.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{regions }\OtherTok{\textless{}{-}}\NormalTok{ regions }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{regions }\OtherTok{\textless{}{-}}\NormalTok{ regions\_unfiltered }\SpecialCharTok{\%\textgreater{}\%}
   \FunctionTok{semi\_join}\NormalTok{(ncbi\_hiq\_meta, }\AttributeTok{by =} \FunctionTok{join\_by}\NormalTok{(accession\_id }\SpecialCharTok{==} \StringTok{\textasciigrave{}}\AttributeTok{Assembly Accession}\StringTok{\textasciigrave{}}\NormalTok{))}
-
-\NormalTok{regions }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{group\_by}\NormalTok{(smc\_id, tax\_genus, n\_scaffolds, contig\_edge) }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{summarize}\NormalTok{(}\AttributeTok{n\_bgcs =} \FunctionTok{n}\NormalTok{()) }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ n\_scaffolds, }\AttributeTok{y =}\NormalTok{ n\_bgcs)) }\SpecialCharTok{+}
-  \FunctionTok{stat\_bin\_hex}\NormalTok{(}\AttributeTok{bins =} \DecValTok{50}\NormalTok{) }\SpecialCharTok{+}
-  \FunctionTok{facet\_wrap}\NormalTok{(. }\SpecialCharTok{\textasciitilde{}}\NormalTok{ contig\_edge, }\AttributeTok{ncol =} \DecValTok{1}\NormalTok{, }\AttributeTok{labeller =} \FunctionTok{as\_labeller}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"FALSE"} \OtherTok{=} \StringTok{"BGCs not on contig edge"}\NormalTok{, }\StringTok{"TRUE"} \OtherTok{=} \StringTok{"BGCs on contig edge"}\NormalTok{))) }\SpecialCharTok{+}
-  \FunctionTok{scale\_x\_log10}\NormalTok{(}\AttributeTok{breaks =} \FunctionTok{breaks\_log}\NormalTok{()) }\SpecialCharTok{+}
-  \FunctionTok{guides}\NormalTok{(}\AttributeTok{fill =} \FunctionTok{guide\_colorbar}\NormalTok{(}\AttributeTok{title =} \StringTok{"\# Genomes"}\NormalTok{)) }\SpecialCharTok{+}
-  \FunctionTok{theme\_bw}\NormalTok{()}
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-5-1.pdf}
+Now, there are 326 genomes and 2953 BGCs represented in the dataset.
+
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-6-1.pdf}
 
 \hypertarget{analyze-data}{%
 \section{Analyze data}\label{analyze-data}}
@@ -365,27 +401,7 @@ categories}\label{summary-statistics-of-bgc-length-across-bgc-categories}}
 categories as
 separate)}\label{how-many-bgcs-in-each-category-counting-hybrids-of-categories-as-separate}}
 
-\begin{Shaded}
-\begin{Highlighting}[]
-\NormalTok{category\_counts }\OtherTok{\textless{}{-}}\NormalTok{ region\_summary }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{y =} \FunctionTok{reorder}\NormalTok{(cats\_str, }\FunctionTok{desc}\NormalTok{(n)))) }\SpecialCharTok{+}
-  \FunctionTok{geom\_col}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ n)) }\SpecialCharTok{+}
-  \FunctionTok{scale\_x\_continuous}\NormalTok{(}\AttributeTok{name =} \StringTok{"BGC count"}\NormalTok{, }\AttributeTok{breaks =} \FunctionTok{breaks\_width}\NormalTok{(}\DecValTok{100}\NormalTok{)) }\SpecialCharTok{+}
-  \FunctionTok{scale\_y\_discrete}\NormalTok{(}\AttributeTok{name =} \StringTok{"BGC Category"}\NormalTok{) }\SpecialCharTok{+}
-  \FunctionTok{theme\_bw}\NormalTok{() }\SpecialCharTok{+}
-  \FunctionTok{ggtitle}\NormalTok{(}\StringTok{"Number of BGCs in dataset, divided by category"}\NormalTok{)}
-\NormalTok{category\_counts}
-\end{Highlighting}
-\end{Shaded}
-
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-7-1.pdf}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\FunctionTok{ggsave}\NormalTok{(}\StringTok{"./figs/svg/category\_counts.svg"}\NormalTok{, category\_counts, }\AttributeTok{device =} \StringTok{"svg"}\NormalTok{)}
-\FunctionTok{ggsave}\NormalTok{(}\StringTok{"./figs/png/category\_counts.png"}\NormalTok{, category\_counts, }\AttributeTok{device =} \StringTok{"png"}\NormalTok{)}
-\end{Highlighting}
-\end{Shaded}
+Here are the numbers
 
 \hypertarget{how-many-bgcs-in-each-category-lumping-all-hybrids-into-one-except-nrps-pks}{%
 \subsubsection{How many BGCs in each category? (lumping all hybrids into
@@ -430,7 +446,7 @@ NRPS-PKS)}\label{how-many-bgcs-in-each-category-lumping-all-hybrids-into-one-exc
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-8-1.pdf}
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-9-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -465,7 +481,7 @@ Un-lumped categories
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-9-1.pdf}
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-10-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -479,7 +495,7 @@ Lumped categories (again, except for NRPS-PKS hybrids)
 \begin{Shaded}
 \begin{Highlighting}[]
 \NormalTok{region\_hist\_lumped }\OtherTok{\textless{}{-}}\NormalTok{ regions\_lumped }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{filter}\NormalTok{(group }\SpecialCharTok{!=} \StringTok{"All other hybrids"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \CommentTok{\# filter(group != "All other hybrids") \%\textgreater{}\%}
   \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ region\_length }\SpecialCharTok{/} \DecValTok{1000}\NormalTok{)) }\SpecialCharTok{+}
   \FunctionTok{geom\_histogram}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{fill =}\NormalTok{ group), }\AttributeTok{bins =} \DecValTok{50}\NormalTok{) }\SpecialCharTok{+}
   \FunctionTok{scale\_x\_log10}\NormalTok{(}\AttributeTok{name =} \StringTok{"BGC length (kb)"}\NormalTok{, }\AttributeTok{guide =} \StringTok{"axis\_logticks"}\NormalTok{, }\AttributeTok{limits =} \FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\ConstantTok{NA}\NormalTok{), }\AttributeTok{breaks =} \FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{5}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{50}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{200}\NormalTok{)) }\SpecialCharTok{+}
@@ -496,7 +512,7 @@ Lumped categories (again, except for NRPS-PKS hybrids)
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-10-1.pdf}
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-11-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -560,7 +576,7 @@ Raw BGC counts by genus
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-12-1.pdf}
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-13-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -686,7 +702,7 @@ per genus and genomes per genus
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-14-1.pdf}
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-15-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -707,9 +723,12 @@ BGCs per genus and genomes per genus
 \CommentTok{\#   group\_by(tax\_genus) \%\textgreater{}\%}
 \CommentTok{\#   mutate(tot\_bgc\_dens = sum(bgc\_dens), tot\_bgcs = sum(num\_bgcs))}
 
+\NormalTok{genus\_order }\OtherTok{\textless{}{-}}\NormalTok{ df\_plots }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{ungroup}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{mutate}\NormalTok{(}\AttributeTok{tax\_genus =} \FunctionTok{fct\_reorder}\NormalTok{(tax\_genus, tot\_bgc\_dens, }\AttributeTok{.desc =}\NormalTok{ T)) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{pull}\NormalTok{(tax\_genus) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{levels}\NormalTok{()}
+
 \CommentTok{\# Plot BGCs per genome, colored by category and divided by genus}
 \NormalTok{p\_bgc\_dens }\OtherTok{\textless{}{-}}\NormalTok{ df\_plots }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \FunctionTok{fct\_reorder}\NormalTok{(tax\_genus, tot\_bgc\_dens, }\AttributeTok{.desc =}\NormalTok{ T))) }\SpecialCharTok{+}
+  \CommentTok{\# ggplot(aes(x = fct\_reorder(tax\_genus, tot\_bgc\_dens, .desc = T))) +}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \FunctionTok{fct\_relevel}\NormalTok{(tax\_genus, genus\_order))) }\SpecialCharTok{+}
   \FunctionTok{geom\_col}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{y =}\NormalTok{ bgc\_dens, }\AttributeTok{fill =}\NormalTok{ group), }\AttributeTok{position =} \FunctionTok{position\_stack}\NormalTok{(}\AttributeTok{reverse =} \ConstantTok{TRUE}\NormalTok{)) }\SpecialCharTok{+}
   \FunctionTok{scale\_y\_continuous}\NormalTok{(}\AttributeTok{name =} \StringTok{"BGCs per genome"}\NormalTok{) }\SpecialCharTok{+}
   \FunctionTok{scale\_x\_discrete}\NormalTok{(}\AttributeTok{name =} \StringTok{"Genus"}\NormalTok{) }\SpecialCharTok{+}
@@ -722,7 +741,8 @@ BGCs per genus and genomes per genus
 
 \CommentTok{\# Plot total BGC count by genus}
 \NormalTok{p\_bgc\_ct }\OtherTok{\textless{}{-}}\NormalTok{ df\_plots }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \FunctionTok{fct\_reorder}\NormalTok{(tax\_genus, tot\_bgc\_dens, }\AttributeTok{.desc =}\NormalTok{ T))) }\SpecialCharTok{+}
+  \CommentTok{\# ggplot(aes(x = fct\_reorder(tax\_genus, tot\_bgc\_dens, .desc = T))) +}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \FunctionTok{fct\_relevel}\NormalTok{(tax\_genus, genus\_order))) }\SpecialCharTok{+}
   \FunctionTok{geom\_col}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{y =}\NormalTok{ tot\_bgcs), }\AttributeTok{data =}\NormalTok{ df\_plots }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{select}\NormalTok{(tax\_genus, tot\_bgcs, tot\_bgc\_dens) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{distinct}\NormalTok{()) }\SpecialCharTok{+}
   \FunctionTok{scale\_y\_continuous}\NormalTok{(}
     \AttributeTok{name =} \StringTok{"BGC count"}\NormalTok{,}
@@ -744,7 +764,8 @@ BGCs per genus and genomes per genus
 \CommentTok{\# genome\_counts}
 
 \NormalTok{p\_genome\_ct }\OtherTok{\textless{}{-}}\NormalTok{ genome\_counts }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \FunctionTok{fct\_reorder}\NormalTok{(tax\_genus, tot\_bgc\_dens, }\AttributeTok{.desc =}\NormalTok{ T))) }\SpecialCharTok{+}
+  \CommentTok{\# ggplot(aes(x = fct\_reorder(tax\_genus, tot\_bgc\_dens, .desc = T))) +}
+  \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \FunctionTok{fct\_relevel}\NormalTok{(tax\_genus, genus\_order))) }\SpecialCharTok{+}
   \FunctionTok{geom\_col}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{y =}\NormalTok{ tot\_genomes)) }\SpecialCharTok{+}
   \FunctionTok{scale\_y\_continuous}\NormalTok{(}\AttributeTok{name =} \StringTok{"Genome count"}\NormalTok{, }\AttributeTok{trans =}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{transform\_pseudo\_log}\NormalTok{(}\AttributeTok{base =} \DecValTok{10}\NormalTok{), }\AttributeTok{breaks =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{5}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{1000}\NormalTok{)) }\SpecialCharTok{+}
   \FunctionTok{coord\_flip}\NormalTok{() }\SpecialCharTok{+}
@@ -755,8 +776,21 @@ BGCs per genus and genomes per genus
 \NormalTok{  )}
 \CommentTok{\# p\_genome\_ct}
 
+\NormalTok{p\_gcf\_ct }\OtherTok{\textless{}{-}}\NormalTok{ gcf\_df }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{filter}\NormalTok{(genus }\SpecialCharTok{\%in\%}\NormalTok{ genome\_counts}\SpecialCharTok{$}\NormalTok{tax\_genus) }\SpecialCharTok{\%\textgreater{}\%}
+    \CommentTok{\# mutate(genus = factor(genus, levels = genome\_counts$tax\_genus \%\textgreater{}\% as\_factor() \%\textgreater{}\% fct\_rev() \%\textgreater{}\% levels())) \%\textgreater{}\%}
+    \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =} \FunctionTok{fct\_relevel}\NormalTok{(genus, genus\_order))) }\SpecialCharTok{+}
+    \FunctionTok{geom\_col}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{y =}\NormalTok{ n\_gcfs)) }\SpecialCharTok{+}
+    \FunctionTok{scale\_y\_continuous}\NormalTok{(}\AttributeTok{name =} \StringTok{"GCF count"}\NormalTok{, }\AttributeTok{trans =}\NormalTok{ scales}\SpecialCharTok{::}\FunctionTok{transform\_pseudo\_log}\NormalTok{(}\AttributeTok{base =} \DecValTok{10}\NormalTok{), }\AttributeTok{breaks =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{5}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{500}\NormalTok{)) }\SpecialCharTok{+}
+    \FunctionTok{coord\_flip}\NormalTok{() }\SpecialCharTok{+}
+    \FunctionTok{theme\_bw}\NormalTok{() }\SpecialCharTok{+}
+    \FunctionTok{theme}\NormalTok{(}
+        \AttributeTok{axis.title.y =} \FunctionTok{element\_blank}\NormalTok{(),}
+        \AttributeTok{axis.text.y =} \FunctionTok{element\_blank}\NormalTok{()}
+\NormalTok{    )}
+
 \CommentTok{\# Plot them all together}
-\NormalTok{p5 }\OtherTok{\textless{}{-}} \FunctionTok{plot\_grid}\NormalTok{(p\_bgc\_dens, p\_bgc\_ct, p\_genome\_ct, }\AttributeTok{align =} \StringTok{"h"}\NormalTok{, }\AttributeTok{rel\_widths =} \FunctionTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{), }\AttributeTok{nrow =} \DecValTok{1}\NormalTok{)}
+\NormalTok{p5 }\OtherTok{\textless{}{-}} \FunctionTok{plot\_grid}\NormalTok{(p\_bgc\_dens, p\_bgc\_ct, p\_gcf\_ct, p\_genome\_ct, }\AttributeTok{align =} \StringTok{"h"}\NormalTok{, }\AttributeTok{rel\_widths =} \FunctionTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{1}\NormalTok{), }\AttributeTok{nrow =} \DecValTok{1}\NormalTok{)}
 \NormalTok{df\_plots}
 \end{Highlighting}
 \end{Shaded}
@@ -785,7 +819,7 @@ BGCs per genus and genomes per genus
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-15-1.pdf}
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-16-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -820,7 +854,7 @@ manuscript}\label{create-figure-2-for-the-manuscript}}
   \FunctionTok{guides}\NormalTok{(}\AttributeTok{fill =} \StringTok{"none"}\NormalTok{)}
 
 \NormalTok{p\_c }\OtherTok{\textless{}{-}}\NormalTok{ regions\_lumped }\SpecialCharTok{\%\textgreater{}\%}
-  \FunctionTok{filter}\NormalTok{(group }\SpecialCharTok{!=} \StringTok{"All other hybrids"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \CommentTok{\# filter(group != "All other hybrids") \%\textgreater{}\%}
   \FunctionTok{ggplot}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ region\_length }\SpecialCharTok{/} \DecValTok{1000}\NormalTok{)) }\SpecialCharTok{+}
       \FunctionTok{geom\_histogram}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{fill =}\NormalTok{ group), }\AttributeTok{bins =} \DecValTok{50}\NormalTok{) }\SpecialCharTok{+}
       \FunctionTok{scale\_x\_log10}\NormalTok{(}\AttributeTok{name =} \StringTok{"BGC length (kb)"}\NormalTok{, }\AttributeTok{guide =} \StringTok{"axis\_logticks"}\NormalTok{, }\AttributeTok{limits =} \FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\ConstantTok{NA}\NormalTok{), }\AttributeTok{breaks =} \FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{5}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{50}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{200}\NormalTok{)) }\SpecialCharTok{+}
@@ -841,12 +875,12 @@ manuscript}\label{create-figure-2-for-the-manuscript}}
 \end{Highlighting}
 \end{Shaded}
 
-\includegraphics{analysis_files/figure-latex/unnamed-chunk-16-1.pdf}
+\includegraphics{analysis_files/figure-latex/unnamed-chunk-17-1.pdf}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\FunctionTok{ggsave}\NormalTok{(}\StringTok{"./figs/\_fig2.png"}\NormalTok{, fig2, }\AttributeTok{width =} \DecValTok{7}\NormalTok{, }\AttributeTok{height =} \DecValTok{10}\NormalTok{, }\AttributeTok{device =} \StringTok{"png"}\NormalTok{)}
-\FunctionTok{ggsave}\NormalTok{(}\StringTok{"./figs/\_fig2.pdf"}\NormalTok{, fig2, }\AttributeTok{width =} \DecValTok{7}\NormalTok{, }\AttributeTok{height =} \DecValTok{10}\NormalTok{, }\AttributeTok{device =} \StringTok{"pdf"}\NormalTok{)}
+\FunctionTok{ggsave}\NormalTok{(}\StringTok{"./figs/\_fig2.png"}\NormalTok{, fig2, }\AttributeTok{width =} \DecValTok{6}\NormalTok{, }\AttributeTok{height =} \DecValTok{9}\NormalTok{, }\AttributeTok{units =} \StringTok{"in"}\NormalTok{, }\AttributeTok{device =} \StringTok{"png"}\NormalTok{)}
+\FunctionTok{ggsave}\NormalTok{(}\StringTok{"./figs/\_fig2.pdf"}\NormalTok{, fig2, }\AttributeTok{width =} \DecValTok{6}\NormalTok{, }\AttributeTok{height =} \DecValTok{9}\NormalTok{, }\AttributeTok{units =} \StringTok{"in"}\NormalTok{, }\AttributeTok{device =} \StringTok{"pdf"}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
