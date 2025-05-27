@@ -86,8 +86,6 @@ bigslice_df <- read_tsv("data/2025-03-14-1524-bigslice_results.tsv") %>%
         'species' = `Species name`
     ) %>%
     replace_na(list(genus = "Unclassified"))
-
-gcf_df <- bigslice_df %>% select(genus, gcf_id) %>% distinct() %>% count(genus, name = "n_gcfs")
 ```
 
 ## Clean data
@@ -213,6 +211,8 @@ Repeat the figure from above, and we should see that most BGCs are not on a cont
 ```{r}
 regions <- regions_unfiltered %>%
   semi_join(ncbi_hiq_meta, by = join_by(accession_id == `Assembly Accession`))
+
+gcf_df <- bigslice_df %>% filter(orig_folder %in% regions$accession_id) %>% select(genus, gcf_id) %>% distinct() %>% count(genus, name = "n_gcfs")
 ```
 
 Now, there are `r regions %>% pull(smc_id) %>% unique() %>% length()` genomes and `r nrow(regions)` BGCs represented in the dataset.
@@ -484,6 +484,11 @@ ggsave("./figs/png/split_proportional.png", p4, width = 8, height = 11, device =
 Plot the BGCs per genome (not normalized to 100%) alongside number of BGCs per genus and genomes per genus
 
 ```{r}
+text_y_off <- theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank()
+)
+
 # Specific ordering for genus names to enforce for other plots
 genus_order <- df_plots %>% 
     ungroup() %>% 
@@ -522,22 +527,14 @@ p_bgc_ct <- df_plots %>%
     breaks = c(0, 1, 5, 10, 100, 500)
   ) +
   coord_flip() +
-  theme_bw() +
-  theme(
-    axis.title.y = element_blank(),
-    axis.text.y = element_blank()
-  )
+  theme_bw()
 
 p_genome_ct <- genome_counts %>%
   ggplot(aes(x = fct_relevel(tax_genus, genus_order))) +
   geom_col(aes(y = tot_genomes)) +
   scale_y_continuous(name = "Genome count", trans = scales::transform_pseudo_log(base = 10), breaks = c(0, 1, 5, 10, 100, 1000)) +
   coord_flip() +
-  theme_bw() +
-  theme(
-    axis.title.y = element_blank(),
-    axis.text.y = element_blank()
-  )
+  theme_bw()
 
 p_gcf_ct <- gcf_df %>%
     filter(genus %in% genome_counts$tax_genus) %>%
@@ -545,16 +542,23 @@ p_gcf_ct <- gcf_df %>%
     geom_col(aes(y = n_gcfs)) +
     scale_y_continuous(name = "GCF count", trans = scales::transform_pseudo_log(base = 10), breaks = c(0, 1, 5, 10, 100, 500)) +
     coord_flip() +
-    theme_bw() +
-    theme(
-        axis.title.y = element_blank(),
-        axis.text.y = element_blank()
-    )
+    theme_bw()
 
 # Plot them all together
-p5 <- plot_grid(p_bgc_dens, p_bgc_ct, p_gcf_ct, p_genome_ct, align = "h", rel_widths = c(3, 1, 1, 1), nrow = 1)
+p5 <- plot_grid(
+    p_bgc_dens, 
+    p_bgc_ct + text_y_off, 
+    p_gcf_ct + text_y_off, 
+    p_genome_ct + text_y_off, 
+    align = "h", 
+    rel_widths = c(3, 1, 1, 1), 
+    nrow = 1
+)
 df_plots
 p5
+ggsave("./figs/png/p_bgc_ct.png", p_bgc_ct, width = 8, height = 11, device = "png")
+ggsave("./figs/png/p_genome_ct.png", p_genome_ct, width = 8, height = 11, device = "png")
+ggsave("./figs/png/p_gcf_ct.png", p_gcf_ct, width = 8, height = 11, device = "png")
 ggsave("./figs/png/split_triple.png", p5, width = 8, height = 11, device = "png")
 ```
 
@@ -574,17 +578,17 @@ p_a <- plot_grid(
         axis.text.x = element_text(size = rel(0.8)),
         plot.margin = sm_margin
         ), 
-    p_bgc_ct + theme(
+    p_bgc_ct + text_y_off + theme(
         axis.text.x = element_text(size = rel(0.8)),
         axis.ticks.y = element_blank(),
         plot.margin = sm_margin
     ), 
-    p_gcf_ct + theme(
+    p_gcf_ct + text_y_off + theme(
         axis.text.x = element_text(size = rel(0.8)),
         axis.ticks.y = element_blank(),
         plot.margin = sm_margin
     ),
-    p_genome_ct + theme(
+    p_genome_ct + text_y_off + theme(
         axis.text.x = element_text(size = rel(0.8)),
         plot.background = element_rect(fill = NA),
         axis.ticks.y = element_blank(),
