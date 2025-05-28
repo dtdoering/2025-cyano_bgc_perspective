@@ -399,7 +399,8 @@ In order to normalize BGC counts to a per-genome basis, we must also know how ma
 ```{r}
 # Plaintext file listing all the accessions that had no BGCs
 cyano_nohits <- read_tsv("data/ncbi_cyano_nohit_accs.txt", col_names = c("accession_id")) %>%
-  left_join(cyano_asm_tax, by = join_by(accession_id == assembly_accession))
+  left_join(cyano_asm_tax, by = join_by(accession_id == assembly_accession)) %>%
+  filter(accession_id %in% ncbi_hiq_meta$`Assembly Accession`)
 
 # Incorporate these into our genome counts
 cyano_nohit_genus_counts <- cyano_nohits %>%
@@ -413,19 +414,24 @@ genomes_by_genus <- genomes_by_genus %>%
   left_join(cyano_nohit_genus_counts, by = join_by(tax_genus == genus)) %>%
   mutate(n_nohits = replace_na(n_nohits, 0)) %>%
   mutate(tot_genomes = n_nohits + n_sources, .keep = "unused")
+
+hiq_genomes_by_genus <- ncbi_hiq_meta %>% left_join(cyano_asm_tax, by = join_by(`Assembly Accession` == assembly_accession)) %>% group_by(genus) %>% summarize(n_genomes = n())
+```
+
+Prepare a single data frame to use for the plots
+
+```{r}
+df_plots <- tax_count %>%
+  filter(tax_genus != "Unclassified") %>%
+  left_join(hiq_genomes_by_genus, by = "tax_genus") %>%
+  mutate(bgc_dens = num_bgcs / tot_genomes) %>%
+  group_by(tax_genus) %>%
+  mutate(tot_bgc_dens = sum(bgc_dens), tot_bgcs = sum(num_bgcs))
 ```
 
 Plot the BGCs per genome (normalized to 100%) alongside number of BGCs per genus and genomes per genus
 
 ```{r}
-# Prepare the dataframe specific to this set of plots
-df_plots <- tax_count %>%
-  filter(tax_genus != "Unclassified") %>%
-  left_join(genomes_by_genus, by = "tax_genus") %>%
-  mutate(bgc_dens = num_bgcs / tot_genomes) %>%
-  group_by(tax_genus) %>%
-  mutate(tot_bgc_dens = sum(bgc_dens), tot_bgcs = sum(num_bgcs))
-
 # Plot BGCs per genome, colored by category and divided by genus
 p_bgc_dens <- df_plots %>%
   ggplot(aes(x = fct_rev(tax_genus))) +
