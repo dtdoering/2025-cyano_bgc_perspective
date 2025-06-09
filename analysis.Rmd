@@ -756,5 +756,7 @@ fig2 <- plot_grid(p_a, bottom_row, nrow = 2, labels = c("A", ""), label_size = 1
 fig2
 ggsave("./figs/_fig2.png", fig2, width = 6.73, height = 9.17, units = "in", device = "png")
 ggsave("./figs/_fig2.pdf", fig2, width = 6.73, height = 9.17, units = "in", device = "pdf")
+ggsave("./figs/_fig2.svg", fig2, width = 6.73, height = 9.17, units = "in", device = "svg")
+ggsave("./figs/_fig2.jpg", fig2, width = 6.73, height = 9.17, units = "in", device = "jpg")
 ```
 
