@@ -2,12 +2,12 @@
 title: "Analysis of BGC content across phylum Cyanobacteriota"
 mainfont: Arial
 output:
-  pdf_document: 
-    keep_tex: yes
-    latex_engine: xelatex
   html_document:
     code_folding: hide
     code_download: yes
+  pdf_document: 
+    keep_tex: yes
+    latex_engine: xelatex
 ---
 
 # Setup
@@ -44,69 +44,128 @@ bgc_class <- read_tsv("data/2025-01-16-1256-bgc_class_ref.tsv") %>% select(!owne
 class_to_cat <- bgc_class$bgc_category
 names(class_to_cat) <- bgc_class$class_name
 
-# NCBI Taxonomy data for Cyanobacteriota assemblies
-cyano_asm_tax <- read_tsv("data/cyano_asm_tax.tsv")
-
 # From SMC: All antiSMASH 'region's for Cyanobacteriota genomes
 regions_unfiltered <- read_tsv("data/2025-02-26-1456-cyano_as_regions.tsv")
 
-# Table of NCBI assemblies at "chromosome" or "complete" quality levels
+# NCBI Taxonomy data for Cyanobacteriota assemblies
+# assembly accession and selected tax ranks
+# 6.1k entries
+cyano_asm_tax <- read_tsv("data/cyano_asm_tax.tsv")
+# assembly accession, assembly level, taxid, and select tax ranks
+# 10.2k entries
+cyano_asm_dataset <- read_tsv("data/cyanos_genomes_taxids.tsv") %>%
+  left_join(
+    read_tsv("data/taxonomy_summary.tsv"), 
+    by = join_by("Organism Taxonomic ID" == "Taxid")
+  ) %>%
+  select(
+    `Assembly Accession`,
+    `Assembly Level`,
+    `Organism Taxonomic ID`,
+    `Superkingdom name`,
+    `Kingdom name`,
+    `Phylum name`,
+    `Class name`,
+    `Order name`,
+    `Family name`,
+    `Genus name`,
+    `Species name`
+  )
+
+# Table of NCBI cyano assemblies at "chromosome" or "complete" quality levels
 ncbi_hiq_meta <- read_tsv("data/ncbi_cyano_HiQualityGenomes_metadata.tsv")
 
-cyano_tax_dataset <- read_tsv("data/taxonomy_summary.tsv")
-cyano_asm_dataset <- read_tsv("data/cyanos_genomes_taxids.tsv") %>% 
-    left_join(cyano_tax_dataset, by = join_by('Organism Taxonomic ID' == 'Taxid')) %>% 
-    select(
-        `Assembly Accession`, 
-        `Assembly Level`, 
-        `Organism Taxonomic ID`, 
-        `Superkingdom name`, 
-        `Kingdom name`, 
-        `Phylum name`, 
-        `Class name`, 
-        `Order name`, 
-        `Family name`, 
-        `Genus name`, 
-        `Species name`
-    )
+# List of the accessions that have been "seen" by the SMC BGC pipeline, whether BGCs were found or not
+# NOTE: Does not include accessions that were found to be MD5-identical (I think)
+smc_track_df <- read_tsv("data/smc_tracked_accessions.tsv") %>%
+  pivot_longer(
+    cols = ends_with("Accession"),
+    names_to = "source",
+    names_pattern = "([[:alnum:]]+)Accession",
+    values_to = "accession"
+  ) %>%
+  drop_na(accession)
+
+smc_tracked_cyanos_df <- smc_track_df %>% 
+  semi_join(ncbi_hiq_meta, by = join_by(accession == `Assembly Accession`)) %>%
+  inner_join(cyano_asm_dataset, by = join_by(accession == `Assembly Accession`)) %>% 
+  mutate(id_sfx = str_remove(accession, "GC[FA]")) %>% 
+  arrange(id_sfx)
 
 # BiG-SLiCE results for getting GCF counts per genus
-bigslice_df <- read_tsv("data/2025-03-14-1524-bigslice_results.tsv") %>% 
-    left_join(cyano_asm_dataset, by = join_by('orig_folder' == 'Assembly Accession')) %>%
-    rename(
-        'asm_level' = `Assembly Level`, 
-        'taxid' = `Organism Taxonomic ID`, 
-        'superkingdom' = `Superkingdom name`, 
-        'kingdom' = `Kingdom name`, 
-        'phylum' = `Phylum name`, 
-        'class' = `Class name`, 
-        'order' = `Order name`, 
-        'family' = `Family name`, 
-        'genus' = `Genus name`, 
-        'species' = `Species name`
-    ) %>%
-    replace_na(list(genus = "Unclassified"))
+bigslice_df <- read_tsv("data/2025-03-14-1524-bigslice_results.tsv") %>%
+  left_join(
+    cyano_asm_dataset, 
+    by = join_by("orig_folder" == "Assembly Accession")
+  ) %>%
+  rename(
+    "asm_level" = `Assembly Level`,
+    "taxid" = `Organism Taxonomic ID`,
+    "superkingdom" = `Superkingdom name`,
+    "kingdom" = `Kingdom name`,
+    "phylum" = `Phylum name`,
+    "class" = `Class name`,
+    "order" = `Order name`,
+    "family" = `Family name`,
+    "genus" = `Genus name`,
+    "species" = `Species name`
+  ) %>%
+  replace_na(list(genus = "Unclassified"))
+
+
+# Handy vector of accession suffixes (i.e. remove the GCA/GCF from assembly 
+# accession) for RefSeq/GenBank assemblies that are identical to each other
+
+# If a RefSeq assembly accession is present in one dataset, but only the
+# GenBank assembly was analyzed for another dataset, joining the two datasets 
+# can retain them both
+
+
+# filter huge file for accessions found in cyano-specific `ncbi_hiq_meta`
+ident_accession_sfx <- read_tsv("data/assembly_summary_genbank.txt", skip = 1) %>%
+  rename(assembly_accession = `#assembly_accession`) %>%
+  select(
+    assembly_accession,
+    gbrs_paired_asm,
+    paired_asm_comp,
+    assembly_level
+  ) %>%
+  filter(
+    assembly_level %in% c("Complete Genome", "Chromosome"),
+    paired_asm_comp == "identical"
+  ) %>%
+  semi_join(
+    ncbi_hiq_meta,
+    by = join_by(assembly_accession == `Assembly Accession`)
+  ) %>% 
+  pull(gbrs_paired_asm) %>% 
+  str_remove("GC[AF]")
+
 ```
 
 ## Clean data
 
 ```{r}
-# Convert BGC 'class' to vector, add in BGC 'category' as vector, order levels 
+# Convert BGC 'class' to vector, add in BGC 'category' as vector, order levels
 # of classes and categories
 regions_unfiltered <- regions_unfiltered %>%
   mutate(classes = map(region_class, function(class_string) {
+    # convert a JSON-string list of BGC classes to an R vector
+    # "['NRPS', 'PKS']" -> c('NRPS', 'PKS')
+    # if it's just one class, it's not JSON-ified already
+    # "NRPS" -> c('NRPS')
     (
       if (str_starts(class_string, fixed("["))) {
         fromJSON(class_string)
       } else {
         c(class_string)
-      }
-    )
+      })
   })) %>%
   mutate(categories = classes %>% map(function(cls_vec) {
-    (
-      map_vec(cls_vec, function(cls_str) class_to_cat[[cls_str]]) %>% unique() %>% sort())
+    # map the BGC classes to their categories and condense
+    (map_vec(cls_vec, function(cls_str) class_to_cat[[cls_str]]) %>% unique() %>% sort())
   })) %>%
+  
   mutate(cats_str = categories %>% map_chr(function(x) str_flatten(x, collapse = ", "))) %>%
   add_count(cats_str) %>%
   mutate(
@@ -114,7 +173,36 @@ regions_unfiltered <- regions_unfiltered %>%
     class_str = classes %>% map_chr(function(x) str_flatten(x, collapse = ", "))
   )
 
-regions_unfiltered
+# use the vector of identical accession suffixes to deduplicate the datasets
+regions_unfiltered <- regions_unfiltered %>% 
+  mutate(
+    id_sfx = str_remove(accession_id, "GC[AF]"), 
+    pair_is_ident = (id_sfx %in% ident_accession_sfx)
+  )
+
+bigslice_df <- bigslice_df %>%
+  mutate(
+    id_sfx = str_remove(orig_folder, "GC[AF]"),
+    pair_is_ident = (id_sfx %in% ident_accession_sfx)
+  )
+
+smc_tracked_cyanos_df <- smc_tracked_cyanos_df %>%
+  mutate(pair_is_ident = (id_sfx %in% ident_accession_sfx))
+
+# For accessions seen by SMC, if they are identical to their pair but the pair 
+# accession has not been seen, then add the missing rows to the tracker, 
+# swapping GCF <-> GCA as needed
+
+smc_tracked_cyanos_df <- bind_rows(
+  smc_tracked_cyanos_df,
+  smc_tracked_cyanos_df %>% 
+  filter(n() == 1, pair_is_ident == TRUE, .by = id_sfx) %>% 
+  mutate(accession = case_when(
+    source == "Genbank" ~ str_replace(accession, "GCA", "GCF"), 
+    source == "Refseq" ~ str_replace(accession, "GCF", "GCA")
+  ))
+)
+
 ```
 
 ## Explore data
@@ -123,7 +211,7 @@ The repetitive composition of many BGCs makes them a challenge during genome ass
 
 ### Basic summary
 
-There are `r regions_unfiltered %>% pull(smc_id) %>% unique() %>% length()` genomes and `r nrow(regions_unfiltered)` BGCs in the initial dataset.
+There are `r n_distinct(regions_unfiltered$smc_id)` BGC-containing genomes and `r nrow(regions_unfiltered)` BGCs in the initial dataset.
 
 ### How fragmented are the full set of genomes, and how does that impact BGC counts?
 
@@ -136,9 +224,19 @@ regions_unfiltered %>%
   stat_bin_hex(bins = 50) +
   scale_x_log10(breaks = breaks_log()) +
   guides(fill = guide_colorbar(title = "# Genomes")) +
-  facet_wrap(. ~ contig_edge, ncol = 1, labeller = as_labeller(c("FALSE" = "BGCs not on contig edge", "TRUE" = "BGCs on contig edge"))) +
+  facet_wrap(
+    . ~ contig_edge, 
+    ncol = 1, 
+    labeller = as_labeller(c(
+      "FALSE" = "BGCs not on contig edge", 
+      "TRUE" = "BGCs on contig edge"
+    ))
+  ) +
   theme_bw() +
-  ggtitle("Fragmented genomes have inflated BGC counts", subtitle = "Full dataset")
+  ggtitle(
+    "Fragmented genomes have inflated BGC counts", 
+    subtitle = "Full dataset"
+  )
 ```
 
 This figure depicts the number of BGCs against the number of scaffolds in a genome. To help avoid overplotting (i.e. many overlapping data points misrepresenting the distribution of the data), the colors of each spot in the figure correspond to how many data points overlap at those coordinates.
@@ -197,7 +295,6 @@ ggplot(filters_df, aes(x = filter, y = n)) +
   scale_fill_manual(name = "BGC on contig edge", values = c("gray80", "black")) +
   theme_classic() +
   coord_flip()
-
 ```
 
 This figure depicts the counts of BGCs that are on a contig edge vs. those that are not, depending on how we define what a "high-quality genome" is. `Complete/Chromosome` refers to the genomes at the "Complete" or "Chromosome" assembly levels on NCBI.
@@ -212,7 +309,6 @@ Repeat the figure from above, and we should see that most BGCs are not on a cont
 regions <- regions_unfiltered %>%
   semi_join(ncbi_hiq_meta, by = join_by(accession_id == `Assembly Accession`))
 
-gcf_df <- bigslice_df %>% filter(orig_folder %in% regions$accession_id) %>% select(genus, gcf_id) %>% distinct() %>% count(genus, name = "n_gcfs")
 ```
 
 Now, there are `r regions %>% pull(smc_id) %>% unique() %>% length()` genomes and `r nrow(regions)` BGCs represented in the dataset.
@@ -394,7 +490,7 @@ ggsave("./figs/svg/genus_counts_all.svg", p_all, device = "svg")
 ggsave("./figs/png/genus_counts_all.png", p_all, device = "png")
 ```
 
-In order to normalize BGC counts to a per-genome basis, we must also know how many Cyano genomes *lacked* BGCs (as detected by antiSMASH).
+In order to normalize BGC counts to a per-genome basis, we must also know how many Cyano genomes are in SMC but *lack* BGCs (as detected by antiSMASH).
 
 ```{r}
 # Plaintext file listing all the accessions that had no BGCs
@@ -415,7 +511,13 @@ genomes_by_genus <- genomes_by_genus %>%
   mutate(n_nohits = replace_na(n_nohits, 0)) %>%
   mutate(tot_genomes = n_nohits + n_sources, .keep = "unused")
 
-hiq_genomes_by_genus <- ncbi_hiq_meta %>% left_join(cyano_asm_tax, by = join_by(`Assembly Accession` == assembly_accession)) %>% group_by(genus) %>% summarize(n_genomes = n())
+hiq_genomes_by_genus <- ncbi_hiq_meta %>%
+  semi_join(smc_tracked_cyanos_df, by = join_by(`Assembly Accession` == accession)) %>%
+  left_join(cyano_asm_tax, by = join_by(`Assembly Accession` == assembly_accession)) %>%
+  group_by(genus) %>%
+  summarize(tot_genomes = n()) %>%
+  rename(tax_genus = genus)
+
 ```
 
 Prepare a single data frame to use for the plots
@@ -487,41 +589,52 @@ p4
 ggsave("./figs/png/split_proportional.png", p4, width = 8, height = 11, device = "png")
 ```
 
-Plot the BGCs per genome (not normalized to 100%) alongside number of BGCs per genus and genomes per genus
+Prepare the GCF data
+
+```{r}
+gcf_df <- bigslice_df %>%
+  semi_join(regions, by = join_by(orig_folder == accession_id)) %>%
+  select(genus, gcf_id) %>%
+  distinct() %>%
+  count(genus, name = "n_gcfs") %>% arrange(genus)
+
+```
+
+Plot the BGCs per genome (not normalized to 100%) alongside number of BGCs per genus, number of GCFs per genus, and genomes per genus
 
 ```{r}
 text_y_off <- theme(
-    axis.title.y = element_blank(),
-    axis.text.y = element_blank()
+  axis.title.y = element_blank(),
+  axis.text.y = element_blank()
 )
 
 # Specific ordering for genus names to enforce for other plots
-genus_order <- df_plots %>% 
-    ungroup() %>% 
-    mutate(tax_genus = fct_reorder(tax_genus, tot_bgc_dens, .desc = T)) %>% 
-    pull(tax_genus) %>% 
-    levels()
+genus_order <- df_plots %>%
+  ungroup() %>%
+  mutate(tax_genus = fct_reorder(tax_genus, tot_bgc_dens, .desc = T)) %>%
+  pull(tax_genus) %>%
+  levels()
 
 # Plot BGCs per genome, colored by category and divided by genus
 p_bgc_dens <- df_plots %>%
   ggplot(aes(x = fct_relevel(tax_genus, genus_order))) +
   geom_col(aes(y = bgc_dens, fill = group), position = position_stack(reverse = TRUE)) +
-  scale_y_continuous(name = "BGCs per genome", expand = expansion(add = c(0.1,1))) +
+  scale_y_continuous(name = "BGCs per genome", expand = expansion(add = c(0.1, 1))) +
   scale_x_discrete(name = "Genus") +
   scale_fill_manual(
-      name = "BGC Category", 
-      values = cat_colors,
-      guide = guide_legend(position = "inside")
+    name = "BGC Category",
+    values = cat_colors,
+    guide = guide_legend(position = "inside")
   ) +
   coord_flip() +
-  theme_bw() + 
+  theme_bw() +
   theme(
     legend.title = element_text(face = "bold", size = rel(0.6)),
     legend.key.height = unit(0.25, "cm"),
     legend.key.width = unit(0.25, "cm"),
     legend.justification.inside = c(0.98, 0.99),
     axis.text.y = element_text(face = "italic", size = rel(0.8), vjust = 0.5)
-    )
+  )
 
 # Plot total BGC count by genus
 p_bgc_ct <- df_plots %>%
@@ -543,22 +656,22 @@ p_genome_ct <- genome_counts %>%
   theme_bw()
 
 p_gcf_ct <- gcf_df %>%
-    filter(genus %in% genome_counts$tax_genus) %>%
-    ggplot(aes(x = fct_relevel(genus, genus_order))) +
-    geom_col(aes(y = n_gcfs)) +
-    scale_y_continuous(name = "GCF count", trans = scales::transform_pseudo_log(base = 10), breaks = c(0, 1, 5, 10, 100, 500)) +
-    coord_flip() +
-    theme_bw()
+  filter(genus %in% genome_counts$tax_genus) %>%
+  ggplot(aes(x = fct_relevel(genus, genus_order))) +
+  geom_col(aes(y = n_gcfs)) +
+  scale_y_continuous(name = "GCF count", trans = scales::transform_pseudo_log(base = 10), breaks = c(0, 1, 5, 10, 100, 500)) +
+  coord_flip() +
+  theme_bw()
 
 # Plot them all together
 p5 <- plot_grid(
-    p_bgc_dens, 
-    p_bgc_ct + text_y_off, 
-    p_gcf_ct + text_y_off, 
-    p_genome_ct + text_y_off, 
-    align = "h", 
-    rel_widths = c(3, 1, 1, 1), 
-    nrow = 1
+  p_bgc_dens,
+  p_bgc_ct + text_y_off,
+  p_gcf_ct + text_y_off,
+  p_genome_ct + text_y_off,
+  align = "h",
+  rel_widths = c(3, 1, 1, 1),
+  nrow = 1
 )
 df_plots
 p5
@@ -574,40 +687,40 @@ ggsave("./figs/png/split_triple.png", p5, width = 8, height = 11, device = "png"
 sm_margin <- unit(c(0.05, 0.05, 0.05, 0.05), "cm")
 
 p_a <- plot_grid(
-    p_bgc_dens + theme(
-        legend.title = element_text(face = "bold", size = rel(0.8)),
-        legend.key.label = element_text(size = rel(0.8)),
-        legend.key.height = unit(0.25, "cm"),
-        legend.key.width = unit(0.25, "cm"),
-        legend.justification.inside = c(0.98, 0.99),
-        axis.text.y = element_text(face = "italic", size = rel(0.8), vjust = 0.5),
-        axis.text.x = element_text(size = rel(0.8)),
-        plot.margin = sm_margin
-        ), 
-    p_bgc_ct + text_y_off + theme(
-        axis.text.x = element_text(size = rel(0.8)),
-        axis.ticks.y = element_blank(),
-        plot.margin = sm_margin
-    ), 
-    p_gcf_ct + text_y_off + theme(
-        axis.text.x = element_text(size = rel(0.8)),
-        axis.ticks.y = element_blank(),
-        plot.margin = sm_margin
-    ),
-    p_genome_ct + text_y_off + theme(
-        axis.text.x = element_text(size = rel(0.8)),
-        plot.background = element_rect(fill = NA),
-        axis.ticks.y = element_blank(),
-        plot.margin = unit(c(0.05, 0.15, 0.05, 0.05), "cm")
-    ), 
-    align = "h", 
-    rel_widths = c(3, 1, 1, 1), 
-    nrow = 1
-    )
+  p_bgc_dens + theme(
+    legend.title = element_text(face = "bold", size = rel(0.8)),
+    legend.key.label = element_text(size = rel(0.8)),
+    legend.key.height = unit(0.25, "cm"),
+    legend.key.width = unit(0.25, "cm"),
+    legend.justification.inside = c(0.98, 0.99),
+    axis.text.y = element_text(face = "italic", size = rel(0.8), vjust = 0.5),
+    axis.text.x = element_text(size = rel(0.8)),
+    plot.margin = sm_margin
+  ),
+  p_bgc_ct + text_y_off + theme(
+    axis.text.x = element_text(size = rel(0.8)),
+    axis.ticks.y = element_blank(),
+    plot.margin = sm_margin
+  ),
+  p_gcf_ct + text_y_off + theme(
+    axis.text.x = element_text(size = rel(0.8)),
+    axis.ticks.y = element_blank(),
+    plot.margin = sm_margin
+  ),
+  p_genome_ct + text_y_off + theme(
+    axis.text.x = element_text(size = rel(0.8)),
+    plot.background = element_rect(fill = NA),
+    axis.ticks.y = element_blank(),
+    plot.margin = unit(c(0.05, 0.15, 0.05, 0.05), "cm")
+  ),
+  align = "h",
+  rel_widths = c(3, 1, 1, 1),
+  nrow = 1
+)
 
 p_b <- ggplot(
-    region_summary_lumped,
-    aes(y = reorder(group, n))
+  region_summary_lumped,
+  aes(y = reorder(group, n))
 ) +
   geom_col(aes(x = n, fill = group)) +
   scale_x_continuous(name = "BGC count", breaks = breaks_extended()) +
@@ -618,19 +731,24 @@ p_b <- ggplot(
 
 p_c <- regions_lumped %>%
   ggplot(aes(x = region_length / 1000)) +
-      geom_histogram(aes(fill = group), bins = 50) +
-      scale_x_log10(name = "BGC length (kb)", guide = "axis_logticks", limits = c(1, NA), breaks = c(1, 5, 10, 50, 100, 200)) +
-      scale_y_continuous(name = "BGC count", breaks = breaks_extended(n = 3)) +
-      scale_fill_manual(values = cat_colors) +
-      facet_wrap(vars(group), ncol = 1, scales = "free_y") +
-      guides(fill = "none") +
-      theme_bw() +
-      theme(
-        strip.background = element_blank(),
-        strip.text = element_blank(),
-        axis.text.y = element_text(size = rel(0.8)),
-        panel.spacing = unit(0.25, "lines")
-      )
+  geom_histogram(aes(fill = group), bins = 50) +
+  scale_x_log10(
+    name = "BGC length (kb)",
+    guide = "axis_logticks",
+    limits = c(1, NA),
+    breaks = c(1, 5, 10, 50, 100, 200)
+  ) +
+  scale_y_continuous(name = "BGC count", breaks = breaks_extended(n = 3)) +
+  scale_fill_manual(values = cat_colors) +
+  facet_wrap(vars(group), ncol = 1, scales = "free_y") +
+  guides(fill = "none") +
+  theme_bw() +
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_blank(),
+    axis.text.y = element_text(size = rel(0.8)),
+    panel.spacing = unit(0.25, "lines")
+  )
 
 bottom_row <- plot_grid(p_b, p_c, nrow = 1, labels = c("B", "C"), label_size = 12)
 
@@ -639,3 +757,4 @@ fig2
 ggsave("./figs/_fig2.png", fig2, width = 6.73, height = 9.17, units = "in", device = "png")
 ggsave("./figs/_fig2.pdf", fig2, width = 6.73, height = 9.17, units = "in", device = "pdf")
 ```
+
